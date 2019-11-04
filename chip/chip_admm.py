@@ -65,14 +65,14 @@ def update_penalty(psi, h, h0, rho):
 
 if __name__ == "__main__":
 
-    ndsets=np.int(sys.argv[1])
-    prj = np.load('prjbin2.npy')[0:ndsets*1210,256-32:256+32].astype('complex64')
-    theta = np.load('theta.npy')[0:ndsets*1210]    
-    
+    ndsets = np.int(sys.argv[1])
+    prj = np.load('prjbin1.npy')[0:ndsets*200,
+                                 512-256:512+256].astype('complex64')
+    theta = np.load('theta.npy')[0:ndsets*200]
 
-    [ntheta,nz,n] = prj.shape  # object size n x,y
-    center = 1173-200 
-    binning = 2
+    [ntheta, nz, n] = prj.shape  # object size n x,y
+    center = 1168-400
+    binning = 1
 
     niter = 64  # tomography iterations
     pnz = 32  # number of slice partitions for simultaneous processing in tomography
@@ -89,13 +89,13 @@ if __name__ == "__main__":
     pars = [0.5, 3, 128, 8, 5, 1.1, 0]
 
     # ADMM solver
-    with tc.SolverTomo(theta, ntheta, nz, n, pnz, center/pow(2,binning)) as tslv:
+    with tc.SolverTomo(theta, ntheta, nz, n, pnz, center/pow(2, binning)) as tslv:
         with dc.SolverDeform(ntheta, nz, n) as dslv:
             rho = 0.5
             h0 = psi
             for k in range(niter):
                 # registration
-                flow = dslv.registration_batch(psi, data, flow,pars)
+                flow = dslv.registration_batch(psi, data, flow, pars)
                 # deformation subproblem
                 psi = dslv.cg_deform(data, psi, flow, 4,
                                      tslv.fwd_tomo_batch(u)+lamd/rho, rho)

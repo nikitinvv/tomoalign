@@ -149,8 +149,8 @@ if __name__ == "__main__":
     dxchange.write_tiff(data_deform.real, 'dataret', overwrite=True)
     dxchange.write_tiff(data_deform.imag, 'dataimt', overwrite=True)
     # or load from file
-    data_deform = dxchange.read_tiff('dataret.tiff').astype(
-        'float32')+1j*dxchange.read_tiff('dataimt.tiff').astype('float32')
+    # data_deform = dxchange.read_tiff('dataret.tiff').astype(
+        # 'float32')+1j*dxchange.read_tiff('dataimt.tiff').astype('float32')
 
     # data
     data = data_deform.copy()
@@ -170,7 +170,7 @@ if __name__ == "__main__":
             h0 = psi
             for k in range(niter):
                 # registration
-                flow = dslv.registration_batch(psi, data, flow)
+                flow = dslv.registration_batch(psi, data, flow, pars)
                 # deformation subproblem
                 psi = dslv.cg_deform(data, psi, flow, 4,
                                      tslv.fwd_tomo_batch(u)+lamd/rho, rho)

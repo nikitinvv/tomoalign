@@ -64,18 +64,14 @@ def update_penalty(psi, h, h0, rho):
 
 
 if __name__ == "__main__":
-
-    ndsets=np.int(sys.argv[1])
-    prj = np.load('prjbin2.npy')[0:ndsets*1210,256-32:256+32].astype('complex64')
-    theta = np.load('theta.npy')[0:ndsets*1210]    
     
-
+    prj = dxchange.read_tiff('Cu-4.tiff')
+    theta = np.load('theta-4.npy')
     [ntheta,nz,n] = prj.shape  # object size n x,y
-    center = 1173-200 
-    binning = 2
-
-    niter = 64  # tomography iterations
-    pnz = 32  # number of slice partitions for simultaneous processing in tomography
+    center = n//2
+    
+    niter = 60  # tomography iterations
+    pnz = 60  # number of slice partitions for simultaneous processing in tomography
 
     # data
     data = prj.copy()
@@ -86,16 +82,22 @@ if __name__ == "__main__":
     lamd = np.zeros([ntheta, nz, n], dtype='complex64')
     flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
     # optical flow parameters
-    pars = [0.5, 3, 128, 8, 5, 1.1, 0]
+    pars = [0.5, 3, 60, 4, 5, 1.1, 0]
 
     # ADMM solver
-    with tc.SolverTomo(theta, ntheta, nz, n, pnz, center/pow(2,binning)) as tslv:
+    with tc.SolverTomo(theta, ntheta, nz, n, pnz, center) as tslv:
+        # cgres = tslv.cg_tomo_batch(data,u*0,32)
+        # dxchange.write_tiff_stack(
+        #         cgres.real,  'tmp'+'_'+str(ntheta)+'/cg/r', overwrite=True)        
+        # exit()
         with dc.SolverDeform(ntheta, nz, n) as dslv:
+             
+
             rho = 0.5
             h0 = psi
             for k in range(niter):
                 # registration
-                flow = dslv.registration_batch(psi, data, flow,pars)
+                flow = dslv.registration_batch(psi, data, flow)
                 # deformation subproblem
                 psi = dslv.cg_deform(data, psi, flow, 4,
                                      tslv.fwd_tomo_batch(u)+lamd/rho, rho)
@@ -104,6 +106,7 @@ if __name__ == "__main__":
                 h = tslv.fwd_tomo_batch(u)
                 # lambda update
                 lamd = lamd+rho*(h-psi)
+
 
                 # checking intermediate results
                 myplot(u, psi, flow)
@@ -123,4 +126,4 @@ if __name__ == "__main__":
                 # Updates
                 rho = update_penalty(psi, h, h0, rho)
                 h0 = h
-                pars[2] -= 2
+                pars[2] -= 1
