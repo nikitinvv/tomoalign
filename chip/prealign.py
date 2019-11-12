@@ -9,8 +9,8 @@ import skimage.feature
 ##################################### Inputs #########################################################################
 file_name = '/local/data/vnikitin/vincent/alignment/Chip_interlaced_9100eV_2000prj_10cycles_2s_069.h5'
 ndsets = 10
-sino_start = 0
-sino_end = 2048
+sino_start = (512-128+50)*2
+sino_end = (512+128+50)*2
 theta_start = 0
 theta_end = 200
 flat_field_norm = True
@@ -45,7 +45,8 @@ if __name__ == "__main__":
     prj = preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remove_rings,
                           FF_drift_corr=flat_field_drift_corr, downsapling=binning)
 
-    prj=prj[:,:,400//pow(2,binning):-400//pow(2,binning)]
+    prj=prj[:,:,456//pow(2,binning):-456//pow(2,binning)]
+    print(np.linalg.norm(prj))
     np.save('prjbin1',prj)        
     np.save('theta',theta)  
         

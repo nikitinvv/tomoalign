@@ -6,7 +6,7 @@ import scipy as sp
 import sys
 import os
 import matplotlib.pyplot as plt
-
+import tomopy
 
 def myplot(u, psi, flow):
     [ntheta, nz, n] = psi.shape
@@ -35,15 +35,15 @@ def myplot(u, psi, flow):
     plt.imshow(dc.flowvis.flow_to_color(flow[-1]), cmap='gray')
 
     plt.subplot(3, 4, 9)
-    plt.imshow(u[nz//2].real)
+    plt.imshow(u[nz//2].real, cmap='gray')
     plt.subplot(3, 4, 10)
-    plt.imshow(u[nz//2+nz//8].real)
+    plt.imshow(u[nz//2+nz//8].real, cmap='gray')
 
     plt.subplot(3, 4, 11)
-    plt.imshow(u[:, n//2].real)
+    plt.imshow(u[:, n//2].real, cmap='gray')
 
     plt.subplot(3, 4, 12)
-    plt.imshow(u[:, :, n//2].real)
+    plt.imshow(u[:, :, n//2].real, cmap='gray')
     if not os.path.exists('tmp'+'_'+str(ntheta)+'/'):
         os.makedirs('tmp'+'_'+str(ntheta)+'/')
     plt.savefig('tmp'+'_'+str(ntheta)+'/flow'+str(k))
@@ -64,20 +64,25 @@ def update_penalty(psi, h, h0, rho):
 
 
 if __name__ == "__main__":
+    binning = 1
+    theta = np.arange(-85,85+0.1,0.4).astype('float32')/180*np.pi
+    prj = dxchange.read_tiff_stack('datacropped/data_00000.tiff',ind=np.arange(0,len(theta)))[:,:640,:]
+    prj = tomopy.normalize_bg(prj, air=100)
+    print(prj.shape)
+    if binning > 0:  # binning
+        prj = tomopy.downsample(prj, level=binning)
+        prj = tomopy.downsample(prj, level=binning, axis=1)
+    
+    prj = prj.astype('complex64')
+    
+    [ntheta, nz, n] = prj.shape  # object size n x,y
+    center = prj.shape[2]/2    
 
-    ndsets = np.int(sys.argv[1])
-    prj = np.load('prjbin1.npy')[0:ndsets*200].astype('complex64')                                 
-    theta = np.load('theta.npy')[0:ndsets*200].astype('float32')
+    niter = 64  # tomography iterations
+    pnz = 80  # number of slice partitions for simultaneous processing in tomography
 
     # data
     data = prj.copy()
-    [ntheta, nz, n] = data.shape  # object size n x,y
-    
-    center = 1168-456
-    binning = 1
-
-    niter = 256  # tomography iterations
-    pnz = 32  # number of slice partitions for simultaneous processing in tomography    
 
     # initial guess
     u = np.zeros([nz, n, n], dtype='complex64')
@@ -85,11 +90,11 @@ if __name__ == "__main__":
     lamd = np.zeros([ntheta, nz, n], dtype='complex64')
     flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
     # optical flow parameters
-    pars = [0.5, 3, 256, 4, 5, 1.1, 0]
+    pars = [0.5, 3, 128, 4, 5, 1.1, 0]
 
-    print(np.linalg.norm(data))
+    print(center/pow(2, binning))
     # ADMM solver
-    with tc.SolverTomo(theta, ntheta, nz, n, pnz, center/pow(2, binning)) as tslv:
+    with tc.SolverTomo(theta, ntheta, nz, n, pnz, center) as tslv:
         with dc.SolverDeform(ntheta, nz, n) as dslv:
             rho = 0.5
             h0 = psi
@@ -116,11 +121,11 @@ if __name__ == "__main__":
                     lagr[3] = np.sum(lagr[0:3])
                     print(k, pars[2], np.linalg.norm(flow), rho, lagr)
                     dxchange.write_tiff_stack(
-                        u.real,  'tmp'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
+                        u.real,  'tmp'+'_'+str(ntheta)+str(nz)+'/rect'+str(k)+'/r', overwrite=True)
                     dxchange.write_tiff_stack(
-                        psi.real, 'tmp'+'_'+str(ntheta)+'/psir'+str(k)+'/r',  overwrite=True)
+                        psi.real, 'tmp'+'_'+str(ntheta)+str(nz)+'/psir'+str(k)+'/r',  overwrite=True)
 
                 # Updates
                 rho = update_penalty(psi, h, h0, rho)
                 h0 = h
-                pars[2] -= 1
+                pars[2] -= 2

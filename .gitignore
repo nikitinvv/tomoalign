@@ -10,7 +10,12 @@ __pycache__/
 # tmp
 tmp*
 3Dstd/tmp*
+chip_la/data*
+chip_la/tmp*
+chip_la/zip
 
+#
+figs
 # login
 
 .loglogin

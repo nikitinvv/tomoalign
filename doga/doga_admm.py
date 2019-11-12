@@ -47,7 +47,7 @@ def myplot(u, psi, flow):
     if not os.path.exists('tmp'+'_'+str(ntheta)+'/'):
         os.makedirs('tmp'+'_'+str(ntheta)+'/')
     plt.savefig('tmp'+'_'+str(ntheta)+'/flow'+str(k))
-    plt.clf()
+    plt.close()
 
 # Update penalty for ADMM
 

@@ -11,7 +11,7 @@ if __name__ == "__main__":
     idF = in_file.find('rect')
     out_file = in_file[:idF-1]+'rotated'+in_file[idF-1:]
     print('rotate',out_file)
-    mul=2
+    mul=1
     
     data = dxchange.read_tiff_stack(in_file+'/r_00000.tiff', ind=range(0, 256*mul))
     data = data.swapaxes(0,1)
