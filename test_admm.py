@@ -39,15 +39,16 @@ def gencylinder(nz, n):
     return u
 
 
-def deform_data(data_deform,u_deform_all, u, theta, n, nz, center, displacement, start, i):
+def deform_data(data_deform, u_deform_all, u, theta, n, nz, center, displacement, start, i):
     with tc.SolverTomo(theta[i:i+1], 1, nz, n, 1, center) as slv:
         # generate data
-        u_deform = elasticdeform.deform_grid(u.real, displacement*(i-start+1)/ntheta*4, order=5, mode='mirror', crop=None, prefilter=True, axis=None)+\
-            1j*elasticdeform.deform_grid(u.imag, displacement*(i-start+1)/ntheta*4, order=5, mode='mirror', crop=None, prefilter=True, axis=None)
+        u_deform = elasticdeform.deform_grid(u.real, displacement*(i-start+1)/ntheta*4, order=5, mode='mirror', crop=None, prefilter=True, axis=None) +\
+            1j*elasticdeform.deform_grid(u.imag, displacement*(
+                i-start+1)/ntheta*4, order=5, mode='mirror', crop=None, prefilter=True, axis=None)
         data_deform[i] = slv.fwd_tomo_batch(
             u_deform.astype('complex64'))
-        u_deform_all[i]=u_deform
-    return data_deform[i],u_deform_all[i]
+        u_deform_all[i] = u_deform
+    return data_deform[i], u_deform_all[i]
 
 
 def deform_data_batch(u, theta, ntheta, n, nz, center):
@@ -59,9 +60,10 @@ def deform_data_batch(u, theta, ntheta, n, nz, center):
     end = ntheta//2+ntheta//8
     data_deform = np.zeros((ntheta, nz, n), dtype='complex64')
     u_deform_all = np.zeros((ntheta, nz, n, n), dtype='complex64')
-    u_deform = elasticdeform.deform_grid(u.real, displacement*(end-start)/ntheta*4, order=5, mode='mirror', crop=None, prefilter=True, axis=None)+\
-            1j*elasticdeform.deform_grid(u.imag, displacement*(end-start)/ntheta*4, order=5, mode='mirror', crop=None, prefilter=True, axis=None)
-    u_deform_all[:start] = u            
+    u_deform = elasticdeform.deform_grid(u.real, displacement*(end-start)/ntheta*4, order=5, mode='mirror', crop=None, prefilter=True, axis=None) +\
+        1j*elasticdeform.deform_grid(u.imag, displacement*(end-start)/ntheta*4,
+                                     order=5, mode='mirror', crop=None, prefilter=True, axis=None)
+    u_deform_all[:start] = u
     for i in range(0, start):
         with tc.SolverTomo(theta[i:i+1], 1, nz, n, 1, center) as slv:
             data_deform[i] = slv.fwd_tomo_batch(u.astype('complex64'))
@@ -72,11 +74,11 @@ def deform_data_batch(u, theta, ntheta, n, nz, center):
     u_deform_all[end:] = u_deform
     with cf.ThreadPoolExecutor() as e:
         shift = start
-        for res0, res1 in e.map(partial(deform_data, data_deform,u_deform_all, u, theta, n, nz, center, displacement, start), range(start, end)):
-            data_deform[shift],u_deform_all[shift] = res0,res1
+        for res0, res1 in e.map(partial(deform_data, data_deform, u_deform_all, u, theta, n, nz, center, displacement, start), range(start, end)):
+            data_deform[shift], u_deform_all[shift] = res0, res1
             shift += 1
 
-    return data_deform,u_deform_all
+    return data_deform, u_deform_all
 
 
 def myplot(u, psi, flow, theta):
@@ -85,7 +87,7 @@ def myplot(u, psi, flow, theta):
     plt.figure(figsize=(20, 14))
     ax = plt.subplot(3, 4, 1)
     ax.set_title("proj #"+str(ntheta//4)+': theta='+str(theta[ntheta//4]))
-    plt.imshow(psi[ntheta//4].real, cmap='gray')    
+    plt.imshow(psi[ntheta//4].real, cmap='gray')
     plt.axis('off')
 
     ax = plt.subplot(3, 4, 2)
@@ -109,35 +111,35 @@ def myplot(u, psi, flow, theta):
     plt.axis('off')
 
     ax = plt.subplot(3, 4, 6)
-    ax.set_title("flow for proj #"+str(ntheta//2))    
+    ax.set_title("flow for proj #"+str(ntheta//2))
     plt.imshow(dc.flowvis.flow_to_color(flow[ntheta//2]), cmap='gray')
     plt.axis('off')
 
     ax = plt.subplot(3, 4, 7)
-    ax.set_title("flow for proj #"+str(3*ntheta//4))    
+    ax.set_title("flow for proj #"+str(3*ntheta//4))
     plt.imshow(dc.flowvis.flow_to_color(flow[3*ntheta//4]), cmap='gray')
     plt.axis('off')
 
     ax = plt.subplot(3, 4, 8)
-    ax.set_title("flow for proj #"+str(ntheta-1))    
+    ax.set_title("flow for proj #"+str(ntheta-1))
     plt.imshow(dc.flowvis.flow_to_color(flow[-1]), cmap='gray')
     plt.axis('off')
 
     ax = plt.subplot(3, 4, 9)
-    ax.set_title("recon z-slice #"+str(nz//4+1))    
-    plt.imshow(u[nz//4+1].real,cmap='gray')
+    ax.set_title("recon z-slice #"+str(nz//4+1))
+    plt.imshow(u[nz//4+1].real, cmap='gray')
     ax = plt.subplot(3, 4, 10)
-    ax.set_title("recon z-slice #"+str(nz//2-4))    
-    plt.imshow(u[nz//2-4].real,cmap='gray')
+    ax.set_title("recon z-slice #"+str(nz//2-4))
+    plt.imshow(u[nz//2-4].real, cmap='gray')
     plt.axis('off')
-    ax = plt.subplot(3, 4, 11)    
-    ax.set_title("recon y-slice #"+str(n//2))    
-    plt.imshow(u[:, n//2].real,cmap='gray')
+    ax = plt.subplot(3, 4, 11)
+    ax.set_title("recon y-slice #"+str(n//2))
+    plt.imshow(u[:, n//2].real, cmap='gray')
     plt.axis('off')
 
     ax = plt.subplot(3, 4, 12)
-    ax.set_title("recon x-slice #"+str(n//2))    
-    plt.imshow(u[:, :, n//2].real,cmap='gray')
+    ax.set_title("recon x-slice #"+str(n//2))
+    plt.imshow(u[:, :, n//2].real, cmap='gray')
     plt.axis('off')
     if not os.path.exists('tmp'+'_'+str(ntheta)+'/'):
         os.makedirs('tmp'+'_'+str(ntheta)+'/')
@@ -166,7 +168,8 @@ if __name__ == "__main__":
     ntheta = 2000//4  # number of angles (rotations)
     center = n/2  # rotation center
     # theta = np.linspace(0, 3*np.pi, ntheta).astype('float32')  # angles
-    theta = np.load('theta.npy')[:ntheta*4:4].astype('float32')#linspace(0, 3*np.pi, ntheta).astype('float32')  # angles
+    # linspace(0, 3*np.pi, ntheta).astype('float32')  # angles
+    theta = np.load('theta.npy')[:ntheta*4:4].astype('float32')
     print(theta.shape)
     niter = 128  # tomography iterations
     pnz = 128  # number of slice partitions for simultaneous processing in tomography
@@ -178,9 +181,11 @@ if __name__ == "__main__":
     data_deform, u_deform = deform_data_batch(u0, theta, ntheta, n, nz, center)
     dxchange.write_tiff(data_deform.real, 'dataret', overwrite=True)
     dxchange.write_tiff(data_deform.imag, 'dataimt', overwrite=True)
-    for k in range(0,ntheta):
-        dxchange.write_tiff(u_deform[k].real, 'u_deformre/r'+str(k), overwrite=True)
-        dxchange.write_tiff(u_deform[k].imag, 'u_deformim/r'+str(k), overwrite=True)
+    for k in range(0, ntheta):
+        dxchange.write_tiff(
+            u_deform[k].real, 'u_deformre/r'+str(k), overwrite=True)
+        dxchange.write_tiff(
+            u_deform[k].imag, 'u_deformim/r'+str(k), overwrite=True)
     # or load from file
     data_deform = dxchange.read_tiff('dataret.tiff').astype(
         'float32')+1j*dxchange.read_tiff('dataimt.tiff').astype('float32')
@@ -198,7 +203,7 @@ if __name__ == "__main__":
 
     # ADMM solver
     with tc.SolverTomo(theta, ntheta, nz, n, pnz, center) as tslv:
-        reccg = tslv.cg_tomo_batch(data,u,64)
+        reccg = tslv.cg_tomo_batch(data, u, 64)
         dxchange.write_tiff(reccg.real, 'reccgre', overwrite=True)
         dxchange.write_tiff(reccg.imag, 'reccgim', overwrite=True)
         with dc.SolverDeform(ntheta, nz, n) as dslv:
