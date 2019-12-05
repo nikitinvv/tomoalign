@@ -16,7 +16,7 @@ theta_end = 1210
 flat_field_norm = True
 flat_field_drift_corr = True  # Correct the intensity drift
 remove_rings = True
-binning = 2
+binning = 1
 ######################################################################################################################
 
 
@@ -48,8 +48,8 @@ if __name__ == "__main__":
     # prj = prj[:,:,456//pow(2,binning):-456//pow(2,binning)]
     print(np.linalg.norm(prj))
     print(theta)
-    prj = prj[:,:,(512+72)/pow(2,binning):-(512+72)/pow(2,binning)].copy()
+    prj = prj[:,:,(512+64)//pow(2,binning):-(512+64)//pow(2,binning)].copy()
    
-    np.save('prj2',prj)        
+    np.save('prj1',prj)        
     np.save('theta1',theta)  
         
