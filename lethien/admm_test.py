@@ -6,6 +6,8 @@ import scipy as sp
 import sys
 import os
 import matplotlib.pyplot as plt
+import cv2
+from timing import tic,toc
 
 
 def myplot(u, psi, flow):
@@ -44,9 +46,9 @@ def myplot(u, psi, flow):
 
     plt.subplot(3, 4, 12)
     plt.imshow(u[:, :, n//2].real)
-    if not os.path.exists('Cassandra_tmp_all'+'_'+str(ntheta)+'_'+str(fixed)+'/'):
-        os.makedirs('Cassandra_tmp_all'+'_'+str(ntheta)+'_'+str(fixed)+'/')
-    plt.savefig('Cassandra_tmp_all'+'_'+str(ntheta)+'_'+str(fixed)+'/flow'+str(k))
+    if not os.path.exists('tmp_all'+'_'+str(ntheta)+'/'):
+        os.makedirs('tmp_all'+'_'+str(ntheta)+'/')
+    plt.savefig('tmp_all'+'_'+str(ntheta)+'/flow'+str(k))
     plt.close()
 
 # Update penalty for ADMM
@@ -65,7 +67,7 @@ def update_penalty(psi, h, h0, rho):
 
 if __name__ == "__main__":
 
-    data = np.load('Cassandra_bin1_sym16l3_all_new.npy').astype('complex64')                                 
+    data = np.load('prjbin1_sym16l3.npy').astype('complex64')                                 
     theta = np.load('theta.npy').astype('float32')
 
     # data
@@ -73,10 +75,10 @@ if __name__ == "__main__":
 
     data[np.where(np.isnan(data))]=0
     print(data.shape)
-    center = 1189-512#1251
+    center = 1251-512-64#12511189
     binning = 1
 
-    niter = 128 # tomography iterations
+    niter = 64 # tomography iterations
     pnz = 64  # number of slice partitions for simultaneous processing in tomography    
 
     # initial guess
@@ -85,27 +87,30 @@ if __name__ == "__main__":
     lamd = np.zeros([ntheta, nz, n], dtype='complex64')
     flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
     # optical flow parameters
-    pars = [0.5, 1, 256, 4, 5, 1.1, 0]
-    fixed = 0
+    pars = [0.5, 1, 128, 4, 5, 1.1, cv2.OPTFLOW_USE_INITIAL_FLOW]
     # ADMM solver
     with tc.SolverTomo(theta, ntheta, nz, n, pnz, center/pow(2, binning)) as tslv:
-        ucg = tslv.cg_tomo_batch(data, u, 64)
+        # ucg = tslv.cg_tomo_batch(data, u, 64)
         
-        dxchange.write_tiff_stack(            
-                        ucg.real,  'cg_Cassandra_new'+'_'+str(ntheta)+'/rect'+'/r', overwrite=True)
+        # dxchange.write_tiff_stack(            
+                        # ucg.real,  'cg_new'+'_'+str(ntheta)+'/rect'+'/r', overwrite=True)
         with dc.SolverDeform(ntheta, nz, n) as dslv:
             rho = 0.5
             h0 = psi
             for k in range(niter):
                 # registration
-                flow = dslv.registration_flow_batch(psi, data, flow, pars)
-                flow[0:fixed] = 0
-                
+                tic()
+                flow = dslv.registration_flow_batch(psi, data, flow.copy(), pars)
+                print('flow',toc())
                 # deformation subproblem
+                tic()
                 psi = dslv.cg_deform(data, psi, flow, 4,
                                      tslv.fwd_tomo_batch(u)+lamd/rho, rho)
+                print('cgdef',toc())
                 # tomo subproblem
+                tic()
                 u = tslv.cg_tomo_batch(psi-lamd/rho, u, 4)
+                print('cgtom',toc())
                 h = tslv.fwd_tomo_batch(u)
                 # lambda update
                 lamd = lamd+rho*(h-psi)
@@ -121,9 +126,9 @@ if __name__ == "__main__":
                     lagr[3] = np.sum(lagr[0:3])
                     print(k, pars[2], np.linalg.norm(flow), rho, lagr)
                     dxchange.write_tiff_stack(
-                        u.real,  'Cassandra_tmp_all_new'+str(binning)+'_'+str(ntheta)+'_'+str(fixed)+'/rect'+str(k)+'/r', overwrite=True)
+                        u.real,  'tmp_all_new'+str(binning)+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
                     dxchange.write_tiff_stack(
-                        psi.real, 'Cassandra_tmp_all_new'+str(binning)+'_'+str(ntheta)+'_'+str(fixed)+'/psir'+str(k)+'/r',  overwrite=True)
+                        psi.real, 'tmp_all_new'+str(binning)+'_'+str(ntheta)+'/psir'+str(k)+'/r',  overwrite=True)
 
                 # Updates
                 rho = update_penalty(psi, h, h0, rho)

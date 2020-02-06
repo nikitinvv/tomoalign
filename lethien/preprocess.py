@@ -7,9 +7,8 @@ import sys
 import skimage.feature
 
 ##################################### Inputs #########################################################################
-file_name = '/data/staff/tomograms/viknik/Lethien/Salida_9100eV_1210prj_1s_026.h5'
-ndsets = 1
-sino_start = 0
+file_name = '/local/data/vdeandrade/2019-02/Cassandra_9100eV_1210prj_1s_027.h5'
+sino_start = 0 
 sino_end = 2048
 theta_start = 0
 theta_end = 1210
@@ -30,7 +29,8 @@ def preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remov
     prj = tomopy.minus_log(prj)  # -logarithm
     if remove_rings:  # remove rings
         prj = tomopy.remove_stripe_fw(
-            prj, level=7, wname='sym16', sigma=1, pad=True)
+            prj, level=3, wname='sym16', sigma=1, pad=True)
+        #prj = tomopy.remove_stripe_sf(prj,size=5)   
     if downsapling > 0:  # binning
         prj = tomopy.downsample(prj, level=binning)
         prj = tomopy.downsample(prj, level=binning, axis=1)
@@ -40,16 +40,16 @@ def preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remov
 if __name__ == "__main__":
    # read data
     prj, flat, dark, theta = dxchange.read_aps_32id(
-        file_name, sino=(sino_start, sino_end), proj=(theta_start,theta_end*ndsets))
+        file_name, sino=(sino_start, sino_end), proj=(theta_start,theta_end))
     # preprocess
     prj = preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remove_rings,
                           FF_drift_corr=flat_field_drift_corr, downsapling=binning)
 
-    # prj = prj[:,:,456//pow(2,binning):-456//pow(2,binning)]
     print(np.linalg.norm(prj))
     print(theta)
-    prj = prj[:,:,(512+64)//pow(2,binning):-(512+64)//pow(2,binning)].copy()
-   
-    np.save('prj1',prj)        
-    np.save('theta1',theta)  
+    prj = prj[:,:,(512)//pow(2,binning):-(512)//pow(2,binning)].copy()
+
+    print(prj.shape)
+    np.save('Cassandra_bin1_sym16l3_all_new',prj)        
+    np.save('theta',theta)  
         
