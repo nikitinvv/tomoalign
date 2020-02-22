@@ -3,11 +3,10 @@ import dxchange
 import numpy as np
 import h5py
 import sys
-import tomoalign as pt
 import skimage.feature
 
 ##################################### Inputs #########################################################################
-file_name = '/local/data/vnikitin/vincent/alignment/Chip_interlaced_9100eV_2000prj_10cycles_2s_069.h5'
+file_name = '/home/beams/VNIKITIN/Chip_interlaced_9100eV_2000prj_10cycles_2s_069.h5'
 ndsets = 10
 sino_start = (512-128+50)*2
 sino_end = (512+128+50)*2
