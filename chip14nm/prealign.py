@@ -6,10 +6,10 @@ import sys
 import skimage.feature
 
 ##################################### Inputs #########################################################################
-file_name = '/data/staff/tomograms/viknik/tomoalign_vincent_data/Chip_interlaced_9100eV_2000prj_10cycles_2s_069.h5'
+file_name = '/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/9100eV/Chip_14nmZP_9100eV_interlaced_2000prj_200proj_per_rot_1s_091.h5'
 ndsets = 10
-sino_start = (512-128+50)*2
-sino_end = (512+128+50)*2
+sino_start = 0
+sino_end = 2048
 theta_start = 0
 theta_end = 200
 flat_field_norm = True
@@ -44,8 +44,8 @@ if __name__ == "__main__":
     prj = preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remove_rings,
                           FF_drift_corr=flat_field_drift_corr, downsapling=binning)
 
-    prj=prj[:,:,456//pow(2,binning):-456//pow(2,binning)]
+    #prj=prj[:,:,456//pow(2,binning):-456//pow(2,binning)]
     print(np.linalg.norm(prj))
-    np.save('/data/staff/tomograms/viknik/tomoalign_vincent_data/prjbin1',prj)        
-    np.save('/data/staff/tomograms/viknik/tomoalign_vincent_data/theta',theta)  
+    np.save('/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/prjbin1',prj)        
+    np.save('/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/theta',theta)  
         
