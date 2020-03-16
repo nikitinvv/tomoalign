@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
 
+from datetime import datetime
+
+
 def myplot(u, psi, flow, binning, alpha):
     [ntheta, nz, n] = psi.shape
 
@@ -67,7 +70,8 @@ def update_penalty(psi, h, h0, rho):
 if __name__ == "__main__":
 
     ndsets = np.int(sys.argv[1])
-    prj = np.load('prjbin1.npy')[0:ndsets*200].astype('complex64')                                 
+    alpha = np.float32(sys.argv[2])
+    prj = np.load('prjbin1.npy')[0:ndsets*200].astype('complex64')[:,32:-32]                                 
     theta = np.load('theta.npy')[0:ndsets*200].astype('float32')
 
     # data
@@ -75,10 +79,9 @@ if __name__ == "__main__":
     [ntheta, nz, n] = data.shape  # object size n x,y
     
     center = 1168-456
-    binning = 1
-    alpha = 1e-7
+    binning = 1   
     niter = 256  # tomography iterations
-    pnz = 16  # number of slice partitions for simultaneous processing in tomography    
+    pnz = 64  # number of slice partitions for simultaneous processing in tomography    
 
     # initial guess
     u = np.zeros([nz, n, n], dtype='complex64')
@@ -91,7 +94,6 @@ if __name__ == "__main__":
     flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
     # optical flow parameters
     pars=[1, 0.5, True, 256, 4, 5, 1.1, 4]
-    print(np.linalg.norm(data))
     # ADMM solver
     with tc.SolverTomo(theta, ntheta, nz, n, pnz, center/pow(2, binning)) as tslv:
         # ucg = tslv.cg_tomo_batch2(data, u, 8)
@@ -107,15 +109,17 @@ if __name__ == "__main__":
             for k in range(niter):
                 # registration
                 if(k>0):
+                    print(datetime.now().strftime("%H:%M:%S"),'reg')
                     flow = dslv.registration_flow_batch(psi1, data, flow, pars)                
                 # deformation subproblem
-                print('cgdeform')
+                print(datetime.now().strftime("%H:%M:%S"),'def')
                 psi1 = dslv.cg_deform(data, psi1, flow, 4,
-                                     tslv.fwd_tomo_batch(u)+lamd1/rho1, rho1, dbg=1)
+                                     tslv.fwd_tomo_batch(u)+lamd1/rho1, rho1)
                 psi2 = tslv.solve_reg(u,lamd2,rho2,alpha)    
                 # tomo subproblem
-                print('cgtomo')
+                print(datetime.now().strftime("%H:%M:%S"),'tomo')
                 u = tslv.cg_tomo_batch_ext2(data, u, 4, rho2/rho1, psi2-lamd2/rho2)
+                print(datetime.now().strftime("%H:%M:%S"),'other')
                 h1 = tslv.fwd_tomo_batch(u)
                 h2 = tslv.fwd_reg(u)
                 # lambda update
@@ -136,8 +140,8 @@ if __name__ == "__main__":
                     print(k, pars[2], np.linalg.norm(flow), rho1, rho2, lagr)
                     dxchange.write_tiff_stack(
                         u.real,  'tmp'+str(binning)+str(alpha)+'_'+str(ntheta)+'/rect'+str(k)+'/r',overwrite=True)
-                    # dxchange.write_tiff_stack(
-                        # psi1.real, 'tmp2'+str(binning)+str(alpha)+'_'+str(ntheta)+'/psir'+str(k)+'/r',  overwrite=True)
+                    dxchange.write_tiff_stack(
+                        psi1.real, 'tmp2'+str(binning)+str(alpha)+'_'+str(ntheta)+'/psir'+str(k)+'/r',  overwrite=True)
 
                 # Updates
                 rho1 = update_penalty(psi1, h1, h01, rho1)
