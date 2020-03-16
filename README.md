@@ -8,5 +8,5 @@ https://github.com/math-vrn/tomocg
 
 # test
 
-see test_admm.py
+see test_admm_shift.py
 
