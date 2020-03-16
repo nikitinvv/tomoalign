@@ -3,11 +3,14 @@ import dxchange
 import numpy as np
 import h5py
 import sys
-import tomoalign as pt
 import skimage.feature
 
 ##################################### Inputs #########################################################################
-file_name = '/local/data/vnikitin/vincent/alignment/Chip_interlaced_9100eV_2000prj_10cycles_2s_069.h5'
+<<<<<<< HEAD
+file_name = '/home/beams/VNIKITIN/Chip_interlaced_9100eV_2000prj_10cycles_2s_069.h5'
+=======
+file_name = '/data/staff/tomograms/viknik/tomoalign_vincent_data/Chip_interlaced_9100eV_2000prj_10cycles_2s_069.h5'
+>>>>>>> 318412382bacc9b7d9c376db65ab2be998ddf4e6
 ndsets = 10
 sino_start = (512-128+50)*2
 sino_end = (512+128+50)*2
@@ -47,6 +50,6 @@ if __name__ == "__main__":
 
     prj=prj[:,:,456//pow(2,binning):-456//pow(2,binning)]
     print(np.linalg.norm(prj))
-    np.save('prjbin1',prj)        
-    np.save('theta',theta)  
+    np.save('/data/staff/tomograms/viknik/tomoalign_vincent_data/prjbin1',prj)        
+    np.save('/data/staff/tomograms/viknik/tomoalign_vincent_data/theta',theta)  
         

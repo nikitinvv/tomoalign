@@ -6,14 +6,16 @@ import scipy as sp
 import sys
 import os
 import matplotlib.pyplot as plt
+import matplotlib
+from timing import tic,toc
+matplotlib.use('Agg')
 
-
-def myplot(u, psi, flow):
+def myplot(u, psi, flow, binning):
     [ntheta, nz, n] = psi.shape
 
     plt.figure(figsize=(20, 14))
     plt.subplot(3, 4, 1)
-    plt.imshow(psi[0].real, cmap='gray')
+    plt.imshow(psi[ntheta//4].real, cmap='gray')
 
     plt.subplot(3, 4, 2)
     plt.imshow(psi[ntheta//2].real, cmap='gray')
@@ -24,7 +26,7 @@ def myplot(u, psi, flow):
     plt.imshow(psi[-1].real, cmap='gray')
 
     plt.subplot(3, 4, 5)
-    plt.imshow(dc.flowvis.flow_to_color(flow[0]), cmap='gray')
+    plt.imshow(dc.flowvis.flow_to_color(flow[ntheta//4]), cmap='gray')
 
     plt.subplot(3, 4, 6)
     plt.imshow(dc.flowvis.flow_to_color(flow[ntheta//2]), cmap='gray')
@@ -35,21 +37,20 @@ def myplot(u, psi, flow):
     plt.imshow(dc.flowvis.flow_to_color(flow[-1]), cmap='gray')
 
     plt.subplot(3, 4, 9)
-    plt.imshow(u[nz//2].real)
+    plt.imshow(u[nz//2].real,cmap='gray')
     plt.subplot(3, 4, 10)
-    plt.imshow(u[nz//2+nz//8].real)
+    plt.imshow(u[nz//2+nz//8].real,cmap='gray')
 
     plt.subplot(3, 4, 11)
-    plt.imshow(u[:, n//2].real)
+    plt.imshow(u[:, n//2].real,cmap='gray')
 
     plt.subplot(3, 4, 12)
-    plt.imshow(u[:, :, n//2].real)
-    if not os.path.exists('Cassandra_tmp_all'+'_'+str(ntheta)+'_'+str(fixed)+'/'):
-        os.makedirs('Cassandra_tmp_all'+'_'+str(ntheta)+'_'+str(fixed)+'/')
-    plt.savefig('Cassandra_tmp_all'+'_'+str(ntheta)+'_'+str(fixed)+'/flow'+str(k))
+    plt.imshow(u[:, :, n//2].real,cmap='gray')
+    if not os.path.exists('/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/flow'+str(binning)+'_'+str(ntheta)+'/'):
+        os.makedirs('/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/flow'+str(binning)+'_'+str(ntheta)+'/')
+    plt.savefig('/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/flow'+str(binning)+'_'+str(ntheta)+'/'+str(k))
     plt.close()
 
-# Update penalty for ADMM
 
 
 def update_penalty(psi, h, h0, rho):
@@ -63,21 +64,23 @@ def update_penalty(psi, h, h0, rho):
     return rho
 
 
+
 if __name__ == "__main__":
 
-    data = np.load('Cassandra_bin1_sym16l3_all_new.npy').astype('complex64')                                 
-    theta = np.load('theta.npy').astype('float32')
+    ndsets = np.int(sys.argv[1])
+    prj = np.load('/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/prjbin2.npy')[0:ndsets*200].astype('complex64')                                 
+    theta = np.load('/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/theta.npy')[0:ndsets*200].astype('float32')
 
     # data
+    binning = 2
+    data = prj[:,256//pow(2,binning):-384//pow(2,binning)].copy()
+    data[np.isnan(data)]=0
     [ntheta, nz, n] = data.shape  # object size n x,y
-
-    data[np.where(np.isnan(data))]=0
-    print(data.shape)
-    center = 1189-512#1251
-    binning = 1
-
-    niter = 128 # tomography iterations
-    pnz = 64  # number of slice partitions for simultaneous processing in tomography    
+    
+    center = 1250
+    
+    niter = 256  # tomography iterations
+    pnz = 32  # number of slice partitions for simultaneous processing in tomography    
 
     # initial guess
     u = np.zeros([nz, n, n], dtype='complex64')
@@ -85,33 +88,37 @@ if __name__ == "__main__":
     lamd = np.zeros([ntheta, nz, n], dtype='complex64')
     flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
     # optical flow parameters
-    pars = [0.5, 1, 256, 4, 5, 1.1, 0]
-    fixed = 0
+    pars = [0.5, 0, 256, 4, 5, 1.1, 4]
+
+    print(np.linalg.norm(data))
     # ADMM solver
     with tc.SolverTomo(theta, ntheta, nz, n, pnz, center/pow(2, binning)) as tslv:
-        ucg = tslv.cg_tomo_batch(data, u, 64)
-        
-        dxchange.write_tiff_stack(            
-                        ucg.real,  'cg_Cassandra_new'+'_'+str(ntheta)+'/rect'+'/r', overwrite=True)
+        #ucg = tslv.cg_tomo_batch2(data, u, 8)
+        #dxchange.write_tiff_stack(
+                        #ucg.real,  'cg'+'_'+str(ntheta)+'/rect'+'/r', overwrite=True)
         with dc.SolverDeform(ntheta, nz, n) as dslv:
             rho = 0.5
             h0 = psi
             for k in range(niter):
                 # registration
-                flow = dslv.registration_flow_batch(psi, data, flow, pars)
-                flow[0:fixed] = 0
-                
+                tic()
+                flow = dslv.registration_flow_batch(psi, data, flow.copy(), pars,nproc=14)
+                print(toc())
+                tic()
                 # deformation subproblem
-                psi = dslv.cg_deform(data, psi, flow, 4,
-                                     tslv.fwd_tomo_batch(u)+lamd/rho, rho)
-                # tomo subproblem
+                psi = dslv.cg_deform(data, psi, flow, 2,
+                                     tslv.fwd_tomo_batch(u)+lamd/rho, rho,nproc=14)
+                print(toc())
+                # tomo subproblem                
+                tic()
                 u = tslv.cg_tomo_batch(psi-lamd/rho, u, 4)
+                print(toc())
                 h = tslv.fwd_tomo_batch(u)
                 # lambda update
                 lamd = lamd+rho*(h-psi)
 
                 # checking intermediate results
-                myplot(u, psi, flow)
+                myplot(u, psi, flow, binning)
                 if(np.mod(k, 4) == 0):  # check Lagrangian
                     Tpsi = dslv.apply_flow_batch(psi, flow)
                     lagr = np.zeros(4)
@@ -121,11 +128,11 @@ if __name__ == "__main__":
                     lagr[3] = np.sum(lagr[0:3])
                     print(k, pars[2], np.linalg.norm(flow), rho, lagr)
                     dxchange.write_tiff_stack(
-                        u.real,  'Cassandra_tmp_all_new'+str(binning)+'_'+str(ntheta)+'_'+str(fixed)+'/rect'+str(k)+'/r', overwrite=True)
+                        u.real,  '/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/chip'+str(binning)+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
                     dxchange.write_tiff_stack(
-                        psi.real, 'Cassandra_tmp_all_new'+str(binning)+'_'+str(ntheta)+'_'+str(fixed)+'/psir'+str(k)+'/r',  overwrite=True)
+                        psi.real, '/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/chip'+str(binning)+'_'+str(ntheta)+'/psir'+str(k)+'/r',  overwrite=True)
 
                 # Updates
                 rho = update_penalty(psi, h, h0, rho)
                 h0 = h
-                pars[2] -= 2
+                pars[2] -= 1

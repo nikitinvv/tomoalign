@@ -7,13 +7,12 @@ import sys
 import os
 import matplotlib.pyplot as plt
 
-
 def myplot(u, psi, flow):
     [ntheta, nz, n] = psi.shape
 
     plt.figure(figsize=(20, 14))
     plt.subplot(3, 4, 1)
-    plt.imshow(psi[0].real, cmap='gray')
+    plt.imshow(psi[ntheta//4].real, cmap='gray')
 
     plt.subplot(3, 4, 2)
     plt.imshow(psi[ntheta//2].real, cmap='gray')
@@ -24,7 +23,7 @@ def myplot(u, psi, flow):
     plt.imshow(psi[-1].real, cmap='gray')
 
     plt.subplot(3, 4, 5)
-    plt.imshow(dc.flowvis.flow_to_color(flow[0]), cmap='gray')
+    plt.imshow(dc.flowvis.flow_to_color(flow[ntheta//4]), cmap='gray')
 
     plt.subplot(3, 4, 6)
     plt.imshow(dc.flowvis.flow_to_color(flow[ntheta//2]), cmap='gray')
@@ -35,18 +34,18 @@ def myplot(u, psi, flow):
     plt.imshow(dc.flowvis.flow_to_color(flow[-1]), cmap='gray')
 
     plt.subplot(3, 4, 9)
-    plt.imshow(u[nz//2].real)
+    plt.imshow(u[nz//2].real, cmap='gray')
     plt.subplot(3, 4, 10)
-    plt.imshow(u[nz//2+nz//8].real)
+    plt.imshow(u[nz//2+nz//8].real, cmap='gray')
 
     plt.subplot(3, 4, 11)
-    plt.imshow(u[:, n//2].real)
+    plt.imshow(u[:, n//2].real, cmap='gray')
 
     plt.subplot(3, 4, 12)
-    plt.imshow(u[:, :, n//2].real)
-    if not os.path.exists('Cassandra_tmp_all'+'_'+str(ntheta)+'_'+str(fixed)+'/'):
-        os.makedirs('Cassandra_tmp_all'+'_'+str(ntheta)+'_'+str(fixed)+'/')
-    plt.savefig('Cassandra_tmp_all'+'_'+str(ntheta)+'_'+str(fixed)+'/flow'+str(k))
+    plt.imshow(u[:, :, n//2].real, cmap='gray')
+    if not os.path.exists('tmp'+'_'+str(ntheta)+'/'):
+        os.makedirs('tmp'+'_'+str(ntheta)+'/')
+    plt.savefig('tmp'+'_'+str(ntheta)+'/flow'+str(k))
     plt.close()
 
 # Update penalty for ADMM
@@ -64,20 +63,20 @@ def update_penalty(psi, h, h0, rho):
 
 
 if __name__ == "__main__":
+    ndsets = np.int(sys.argv[1])
 
-    data = np.load('Cassandra_bin1_sym16l3_all_new.npy').astype('complex64')                                 
-    theta = np.load('theta.npy').astype('float32')
+    binning = 1
+    name = "prj_bin_"+str(binning)+"ndsets_20"
+    prj = np.load(name+'.npy')[0:ndsets*100].astype('complex64')                                 
+    name = "theta_ndsets_20"
+    theta = np.load(name+'.npy')[0:ndsets*100].astype('float32')
 
     # data
-    [ntheta, nz, n] = data.shape  # object size n x,y
-
-    data[np.where(np.isnan(data))]=0
-    print(data.shape)
-    center = 1189-512#1251
-    binning = 1
-
-    niter = 128 # tomography iterations
-    pnz = 64  # number of slice partitions for simultaneous processing in tomography    
+    data = prj.copy()
+    [ntheta, nz, n] = data.shape  # object size n x,y    
+    center = 1268
+    niter = 256  # tomography iterations
+    pnz = 16  # number of slice partitions for simultaneous processing in tomography    
 
     # initial guess
     u = np.zeros([nz, n, n], dtype='complex64')
@@ -85,27 +84,21 @@ if __name__ == "__main__":
     lamd = np.zeros([ntheta, nz, n], dtype='complex64')
     flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
     # optical flow parameters
-    pars = [0.5, 1, 256, 4, 5, 1.1, 0]
-    fixed = 0
+    pars = [0.5, 3, 256, 4, 5, 1.1, 4]
+    print(data.shape)
     # ADMM solver
     with tc.SolverTomo(theta, ntheta, nz, n, pnz, center/pow(2, binning)) as tslv:
-        ucg = tslv.cg_tomo_batch(data, u, 64)
-        
-        dxchange.write_tiff_stack(            
-                        ucg.real,  'cg_Cassandra_new'+'_'+str(ntheta)+'/rect'+'/r', overwrite=True)
         with dc.SolverDeform(ntheta, nz, n) as dslv:
             rho = 0.5
             h0 = psi
             for k in range(niter):
                 # registration
                 flow = dslv.registration_flow_batch(psi, data, flow, pars)
-                flow[0:fixed] = 0
-                
                 # deformation subproblem
                 psi = dslv.cg_deform(data, psi, flow, 4,
                                      tslv.fwd_tomo_batch(u)+lamd/rho, rho)
                 # tomo subproblem
-                u = tslv.cg_tomo_batch(psi-lamd/rho, u, 4)
+                u = tslv.cg_tomo_batch2(psi-lamd/rho, u, 4)
                 h = tslv.fwd_tomo_batch(u)
                 # lambda update
                 lamd = lamd+rho*(h-psi)
@@ -121,11 +114,11 @@ if __name__ == "__main__":
                     lagr[3] = np.sum(lagr[0:3])
                     print(k, pars[2], np.linalg.norm(flow), rho, lagr)
                     dxchange.write_tiff_stack(
-                        u.real,  'Cassandra_tmp_all_new'+str(binning)+'_'+str(ntheta)+'_'+str(fixed)+'/rect'+str(k)+'/r', overwrite=True)
+                        u.real,  'tmp'+'_'+str(ntheta)+str(nz)+'/rect'+str(k)+'/r', overwrite=True)
                     dxchange.write_tiff_stack(
-                        psi.real, 'Cassandra_tmp_all_new'+str(binning)+'_'+str(ntheta)+'_'+str(fixed)+'/psir'+str(k)+'/r',  overwrite=True)
+                        psi.real, 'tmp'+'_'+str(ntheta)+str(nz)+'/psir'+str(k)+'/r',  overwrite=True)
 
                 # Updates
                 rho = update_penalty(psi, h, h0, rho)
                 h0 = h
-                pars[2] -= 2
+                pars[2] -= 1

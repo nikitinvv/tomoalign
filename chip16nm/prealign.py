@@ -3,15 +3,15 @@ import dxchange
 import numpy as np
 import h5py
 import sys
-# import tomoalign as pt
 import skimage.feature
 
 ##################################### Inputs #########################################################################
-file_name = '/local/data/vdeandrade/2019-02/Cassandra_9100eV_1210prj_1s_027.h5'
-sino_start = 0 
+file_name = '/data/staff/tomograms/viknik/tomoalign_vincent_data/16nmZP/9100eV/Chip_16nmZP_9100eV_interlaced_2000prj_200prj_per_rot_1s_089.h5'
+ndsets = 10
+sino_start = 0
 sino_end = 2048
 theta_start = 0
-theta_end = 1210
+theta_end = 200
 flat_field_norm = True
 flat_field_drift_corr = True  # Correct the intensity drift
 remove_rings = True
@@ -29,8 +29,7 @@ def preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remov
     prj = tomopy.minus_log(prj)  # -logarithm
     if remove_rings:  # remove rings
         prj = tomopy.remove_stripe_fw(
-            prj, level=3, wname='sym16', sigma=1, pad=True)
-        #prj = tomopy.remove_stripe_sf(prj,size=5)   
+            prj, level=7, wname='sym16', sigma=1, pad=True)
     if downsapling > 0:  # binning
         prj = tomopy.downsample(prj, level=binning)
         prj = tomopy.downsample(prj, level=binning, axis=1)
@@ -40,16 +39,13 @@ def preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remov
 if __name__ == "__main__":
    # read data
     prj, flat, dark, theta = dxchange.read_aps_32id(
-        file_name, sino=(sino_start, sino_end), proj=(theta_start,theta_end))
+        file_name, sino=(sino_start, sino_end), proj=(theta_start,theta_end*ndsets))
     # preprocess
     prj = preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remove_rings,
                           FF_drift_corr=flat_field_drift_corr, downsapling=binning)
 
+    #prj=prj[:,:,456//pow(2,binning):-456//pow(2,binning)]
     print(np.linalg.norm(prj))
-    print(theta)
-    prj = prj[:,:,(512)//pow(2,binning):-(512)//pow(2,binning)].copy()
-
-    print(prj.shape)
-    np.save('Cassandra_bin1_sym16l3_all_new',prj)        
-    np.save('theta',theta)  
+    np.save('/data/staff/tomograms/viknik/tomoalign_vincent_data/16nmZP/prjbin1',prj)        
+    np.save('/data/staff/tomograms/viknik/tomoalign_vincent_data/16nmZP/theta',theta)  
         
