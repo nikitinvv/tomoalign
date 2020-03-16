@@ -6,8 +6,11 @@ import scipy as sp
 import sys
 import os
 import matplotlib.pyplot as plt
+import matplotlib
+from timing import tic,toc
+matplotlib.use('Agg')
 
-def myplot(u, psi, flow):
+def myplot(u, psi, flow, binning):
     [ntheta, nz, n] = psi.shape
 
     plt.figure(figsize=(20, 14))
@@ -34,21 +37,20 @@ def myplot(u, psi, flow):
     plt.imshow(dc.flowvis.flow_to_color(flow[-1]), cmap='gray')
 
     plt.subplot(3, 4, 9)
-    plt.imshow(u[nz//2].real, cmap='gray')
+    plt.imshow(u[nz//2].real,cmap='gray')
     plt.subplot(3, 4, 10)
-    plt.imshow(u[nz//2+nz//8].real, cmap='gray')
+    plt.imshow(u[nz//2+nz//8].real,cmap='gray')
 
     plt.subplot(3, 4, 11)
-    plt.imshow(u[:, n//2].real, cmap='gray')
+    plt.imshow(u[:, n//2].real,cmap='gray')
 
     plt.subplot(3, 4, 12)
-    plt.imshow(u[:, :, n//2].real, cmap='gray')
-    if not os.path.exists('tmp'+'_'+str(ntheta)+'/'):
-        os.makedirs('tmp'+'_'+str(ntheta)+'/')
-    plt.savefig('tmp'+'_'+str(ntheta)+'/flow'+str(k))
+    plt.imshow(u[:, :, n//2].real,cmap='gray')
+    if not os.path.exists('/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/flow'+str(binning)+'_'+str(ntheta)+'/'):
+        os.makedirs('/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/flow'+str(binning)+'_'+str(ntheta)+'/')
+    plt.savefig('/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/flow'+str(binning)+'_'+str(ntheta)+'/'+str(k))
     plt.close()
 
-# Update penalty for ADMM
 
 
 def update_penalty(psi, h, h0, rho):
@@ -62,21 +64,23 @@ def update_penalty(psi, h, h0, rho):
     return rho
 
 
-if __name__ == "__main__":
-    ndsets = np.int(sys.argv[1])
 
-    binning = 1
-    name = "prj_bin_"+str(binning)+"ndsets_20"
-    prj = np.load(name+'.npy')[0:ndsets*100].astype('complex64')                                 
-    name = "theta_ndsets_20"
-    theta = np.load(name+'.npy')[0:ndsets*100].astype('float32')
+if __name__ == "__main__":
+
+    ndsets = np.int(sys.argv[1])
+    prj = np.load('/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/prjbin2.npy')[0:ndsets*200].astype('complex64')                                 
+    theta = np.load('/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/theta.npy')[0:ndsets*200].astype('float32')
 
     # data
-    data = prj.copy()
-    [ntheta, nz, n] = data.shape  # object size n x,y    
-    center = 1268
+    binning = 2
+    data = prj[:,256//pow(2,binning):-384//pow(2,binning)].copy()
+    data[np.isnan(data)]=0
+    [ntheta, nz, n] = data.shape  # object size n x,y
+    
+    center = 1250
+    
     niter = 256  # tomography iterations
-    pnz = 16  # number of slice partitions for simultaneous processing in tomography    
+    pnz = 32  # number of slice partitions for simultaneous processing in tomography    
 
     # initial guess
     u = np.zeros([nz, n, n], dtype='complex64')
@@ -84,27 +88,37 @@ if __name__ == "__main__":
     lamd = np.zeros([ntheta, nz, n], dtype='complex64')
     flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
     # optical flow parameters
-    pars = [0.5, 3, 256, 4, 5, 1.1, 4]
-    print(data.shape)
+    pars = [0.5, 0, 256, 4, 5, 1.1, 4]
+
+    print(np.linalg.norm(data))
     # ADMM solver
     with tc.SolverTomo(theta, ntheta, nz, n, pnz, center/pow(2, binning)) as tslv:
+        #ucg = tslv.cg_tomo_batch2(data, u, 8)
+        #dxchange.write_tiff_stack(
+                        #ucg.real,  'cg'+'_'+str(ntheta)+'/rect'+'/r', overwrite=True)
         with dc.SolverDeform(ntheta, nz, n) as dslv:
             rho = 0.5
             h0 = psi
             for k in range(niter):
                 # registration
-                flow = dslv.registration_flow_batch(psi, data, flow, pars)
+                tic()
+                flow = dslv.registration_flow_batch(psi, data, flow.copy(), pars,nproc=14)
+                print(toc())
+                tic()
                 # deformation subproblem
-                psi = dslv.cg_deform(data, psi, flow, 4,
-                                     tslv.fwd_tomo_batch(u)+lamd/rho, rho)
-                # tomo subproblem
-                u = tslv.cg_tomo_batch2(psi-lamd/rho, u, 4)
+                psi = dslv.cg_deform(data, psi, flow, 2,
+                                     tslv.fwd_tomo_batch(u)+lamd/rho, rho,nproc=14)
+                print(toc())
+                # tomo subproblem                
+                tic()
+                u = tslv.cg_tomo_batch(psi-lamd/rho, u, 4)
+                print(toc())
                 h = tslv.fwd_tomo_batch(u)
                 # lambda update
                 lamd = lamd+rho*(h-psi)
 
                 # checking intermediate results
-                myplot(u, psi, flow)
+                myplot(u, psi, flow, binning)
                 if(np.mod(k, 4) == 0):  # check Lagrangian
                     Tpsi = dslv.apply_flow_batch(psi, flow)
                     lagr = np.zeros(4)
@@ -114,9 +128,9 @@ if __name__ == "__main__":
                     lagr[3] = np.sum(lagr[0:3])
                     print(k, pars[2], np.linalg.norm(flow), rho, lagr)
                     dxchange.write_tiff_stack(
-                        u.real,  'tmp'+'_'+str(ntheta)+str(nz)+'/rect'+str(k)+'/r', overwrite=True)
+                        u.real,  '/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/chip'+str(binning)+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
                     dxchange.write_tiff_stack(
-                        psi.real, 'tmp'+'_'+str(ntheta)+str(nz)+'/psir'+str(k)+'/r',  overwrite=True)
+                        psi.real, '/data/staff/tomograms/viknik/tomoalign_vincent_data/14nmZP/chip'+str(binning)+'_'+str(ntheta)+'/psir'+str(k)+'/r',  overwrite=True)
 
                 # Updates
                 rho = update_penalty(psi, h, h0, rho)
