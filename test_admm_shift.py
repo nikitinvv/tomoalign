@@ -3,7 +3,7 @@ import dxchange
 import numpy as np
 import tomocg
 import deformcg
-
+from timing import *
 
 def update_penalty(psi, h, h0, rho):
     """Update penalty Lagrangian factor rho for faster convergence"""
@@ -26,30 +26,28 @@ def take_lagr(psi,h,data,lamd,shift,shift0,rho,k):
     lagr[2] = rho*np.linalg.norm(h-psi)**2
     lagr[3] = np.sum(lagr[0:3])
     print('iter:',k,'rho:', rho,'Lagrangian terms:',lagr)
-    print('angle0',shift[0],'<->',shift0[0],'dif:',shift[0]-shift0[0])
-    print('angle1',shift[-1],'<->',shift0[-1],'dif:',shift[-1]-shift0[-1])
+    #print('angle0',shift[0],'<->',shift0[0],'dif:',shift[0]-shift0[0])
+    #print('angle1',shift[-1],'<->',shift0[-1],'dif:',shift[-1]-shift0[-1])
     dxchange.write_tiff_stack(
         u.real,  'rec/admm/delta'+str(k)+'/r', overwrite=True)
     dxchange.write_tiff_stack(
         psi.real, 'rec/admm/psi'+str(k)+'/r',  overwrite=True)
-
+    
 
 if __name__ == "__main__":
 
     # Model parameters
-    n = 128  # object size n x,y
-    nz = 128  # object size in z
-    ntheta = 64  # number of angles (rotations)
+    n = 512  # object size n x,y
+    nz = 512  # object size in z
+    ntheta = 512  # number of angles (rotations)
     center = n/2  # rotation center
     theta = np.linspace(0, np.pi, ntheta).astype('float32')  # angles
-    pnz = 128  # number of slice partitions for simultaneous processing in tomography
+    pnz = 32  # number of slice partitions for simultaneous processing in tomography
     # Load object
-    beta = dxchange.read_tiff('data/beta-chip-128.tiff')
-    delta = dxchange.read_tiff('data/delta-chip-128.tiff')
-    u0 = delta+1j*beta
-    print(u0.shape)
-   
-    with tomocg.SolverTomo(theta, ntheta, nz, n, pnz, center) as ts:
+    delta = dxchange.read_tiff('data/delta-chip-512.tiff')
+    u0 = delta+1j*0
+    
+    with tomocg.SolverTomo(theta, ntheta, nz, n, pnz, center, 4) as ts:
         with deformcg.SolverDeform(ntheta, nz, n) as ds:
             # generate data
             data0 = ts.fwd_tomo_batch(u0)
@@ -62,8 +60,9 @@ if __name__ == "__main__":
             print('Standard CG solver')
             u = np.zeros([nz,n,n],dtype='complex64')
             # solution by standard cg
-            ucg = ts.cg_tomo_batch(data,u,64)
-            
+            tic()
+            ucg = ts.cg_tomo_batch(data,u,16)
+            print('cg time:',toc())
             dxchange.write_tiff(ucg.imag,  'rec/cg/betacg', overwrite=True)
             dxchange.write_tiff(ucg.real,  'rec/cg/deltacg', overwrite=True)
 
@@ -80,12 +79,18 @@ if __name__ == "__main__":
             h0 = psi
             for k in range(64):
                 # registration
+                tic()
                 shift = ds.registration_shift_batch(data, psi, upsample_factor=1)# dynamically increase upsampling
+                print('reg time:',toc())
                 # explicit solution for the translation subproblem
+                tic()
                 psi = (ds.apply_shift_batch(data, -shift) +
                        rho*ts.fwd_tomo_batch(u)+lamd)/(1+rho)
+                print('expl time:',toc())                       
                 # tomo subproblem
+                tic()
                 u = ts.cg_tomo_batch(psi-lamd/rho, u, 4)  # 4 inner iterations
+                print('cg time:',toc())                       
                 # lambda update
                 h = ts.fwd_tomo_batch(u)
                 lamd = lamd+rho*(h-psi)
