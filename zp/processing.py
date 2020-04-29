@@ -8,14 +8,14 @@ import skimage.feature
 ##################################### Inputs #########################################################################
 file_name = '/data/staff/tomograms/vviknik/tomoalign_vincent_data/ZP/ZP_16nmZP_73to66_9100eV_1s_4000prj_001.h5'
 ndsets = 1
-sino_start =1024
+sino_start = 1024
 sino_end = 2048
 theta_start = 0
 theta_end = 4000
 flat_field_norm = True
-flat_field_drift_corr = True  # Correct the intensity drift
+flat_field_drift_corr = False  # Correct the intensity drift
 remove_rings = True
-binning = 2
+binning = 0
 ######################################################################################################################
 
 
@@ -28,8 +28,9 @@ def preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remov
     prj[prj <= 0] = 1  # check dark<data
     prj = tomopy.minus_log(prj)  # -logarithm
     if remove_rings:  # remove rings
-        prj = tomopy.remove_stripe_fw(
-            prj, level=7, wname='sym16', sigma=1, pad=True)
+        # prj = tomopy.remove_stripe_fw(
+        #     prj, level=7, wname='sym16', sigma=1, pad=True)
+        prj = tomopy.remove_stripe_ti(prj,2)
     if downsapling > 0:  # binning
         prj = tomopy.downsample(prj, level=binning)
         prj = tomopy.downsample(prj, level=binning, axis=1)
@@ -46,6 +47,6 @@ if __name__ == "__main__":
 
     #dxchange.write_tiff_stack(prj.swapaxes(1,2),'/data/staff/tomograms/vviknik/tomoalign_vincent_data/ZP/sinostack/rs')
     #print(np.linalg.norm(prj))
-    np.save('/data/staff/tomograms/vviknik/tomoalign_vincent_data/ZP/prjbin2p1',prj)        
+    np.save('/data/staff/tomograms/vviknik/tomoalign_vincent_data/ZP/prjbin0p2new',prj)        
     np.save('/data/staff/tomograms/vviknik/tomoalign_vincent_data/ZP/theta',theta)  
         

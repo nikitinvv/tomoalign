@@ -38,47 +38,13 @@ def gencylinder(nz, n):
     u[-32:, :] = 0
     return u
 
-
-def deform_data(data_deform, u_deform_all, u, theta, n, nz, center, displacement, start, i):
-    with tc.SolverTomo(theta[i:i+1], 1, nz, n, 1, center) as slv:
-        # generate data
-        u_deform = elasticdeform.deform_grid(u.real, displacement*(i-start+1)/ntheta*4, order=5, mode='mirror', crop=None, prefilter=True, axis=None) +\
-            1j*elasticdeform.deform_grid(u.imag, displacement*(
-                i-start+1)/ntheta*4, order=5, mode='mirror', crop=None, prefilter=True, axis=None)
-        data_deform[i] = slv.fwd_tomo_batch(
-            u_deform.astype('complex64'))
-        u_deform_all[i] = u_deform
-    return data_deform[i], u_deform_all[i]
-
-
-def deform_data_batch(u, theta, ntheta, n, nz, center):
-    points = [3, 3, 3]
-    sigma = 20
-    # np.random.seed(0)
-    displacement = (np.random.rand(3, *points) - 0.5) * sigma
-    start = ntheta//2
-    end = ntheta//2+ntheta//8
-    data_deform = np.zeros((ntheta, nz, n), dtype='complex64')
-    u_deform_all = np.zeros((ntheta, nz, n, n), dtype='complex64')
-    u_deform = elasticdeform.deform_grid(u.real, displacement*(end-start)/ntheta*4, order=5, mode='mirror', crop=None, prefilter=True, axis=None) +\
-        1j*elasticdeform.deform_grid(u.imag, displacement*(end-start)/ntheta*4,
-                                     order=5, mode='mirror', crop=None, prefilter=True, axis=None)
-    u_deform_all[:start] = u
-    for i in range(0, start):
-        with tc.SolverTomo(theta[i:i+1], 1, nz, n, 1, center) as slv:
-            data_deform[i] = slv.fwd_tomo_batch(u.astype('complex64'))
-    for i in range(end, ntheta):
-        with tc.SolverTomo(theta[i:i+1], 1, nz, n, 1, center) as slv:
-            data_deform[i] = slv.fwd_tomo_batch(
-                u_deform.astype('complex64'))
-    u_deform_all[end:] = u_deform
-    with cf.ThreadPoolExecutor() as e:
-        shift = start
-        for res0, res1 in e.map(partial(deform_data, data_deform, u_deform_all, u, theta, n, nz, center, displacement, start), range(start, end)):
-            data_deform[shift], u_deform_all[shift] = res0, res1
-            shift += 1
-
-    return data_deform, u_deform_all
+def deform_data(data):
+    points = [3, 3]
+    sigma = 8
+    for k in range(data.shape[0]):    
+       displacement = (np.random.rand(2, *points) - 0.5) * sigma 
+       data[k] = elasticdeform.deform_grid(data[k], displacement, order=5, mode='mirror', crop=None, prefilter=True, axis=None) 
+    return data
 
 
 def myplot(u, psi, flow, theta):
@@ -159,6 +125,13 @@ def update_penalty(psi, h, h0, rho):
         rho *= 0.5
     return rho
 
+def find_min_max(data):
+    s = np.std(data,axis=(1,2))
+    m = np.mean(data,axis=(1,2))
+    mmin = m-2*s
+    mmax = m+2*s
+    return mmin,mmax
+
 
 if __name__ == "__main__":
 
@@ -167,74 +140,68 @@ if __name__ == "__main__":
     nz = 128  # object size in z
     ntheta = 2000//4  # number of angles (rotations)
     center = n/2  # rotation center
-    # theta = np.linspace(0, 3*np.pi, ntheta).astype('float32')  # angles
-    # linspace(0, 3*np.pi, ntheta).astype('float32')  # angles
-    theta = np.load('theta.npy')[:ntheta*4:4].astype('float32')
+    theta = np.linspace(0, np.pi, ntheta).astype('float32')  # angles
     print(theta.shape)
-    niter = 128  # tomography iterations
+    niter = 32  # tomography iterations
     pnz = 128  # number of slice partitions for simultaneous processing in tomography
 
-    #u0 = gencylinder(nz, n)
-    u0 = -dxchange.read_tiff('data/delta-chip-128.tiff').astype(
-        'float32')+1j*dxchange.read_tiff('data/beta-chip-128.tiff').astype('float32')*0
-    # Deform data and save to file
-    data_deform, u_deform = deform_data_batch(u0, theta, ntheta, n, nz, center)
-    dxchange.write_tiff(data_deform.real, 'dataret', overwrite=True)
-    dxchange.write_tiff(data_deform.imag, 'dataimt', overwrite=True)
-    for k in range(0, ntheta):
-        dxchange.write_tiff(
-            u_deform[k].real, 'u_deformre/r'+str(k), overwrite=True)
-        dxchange.write_tiff(
-            u_deform[k].imag, 'u_deformim/r'+str(k), overwrite=True)
-    # or load from file
-    data_deform = dxchange.read_tiff('dataret.tiff').astype(
-        'float32')+1j*dxchange.read_tiff('dataimt.tiff').astype('float32')
-
-    # data
-    data = data_deform.copy()
-
+    u0 = -dxchange.read_tiff('data/delta-chip-256.tiff')[64:-64,64:-64,64:-64].astype(
+        'float32')    
+    #pad = u0*0
+    #pad[4:-4,4:-4,4:-4]=1
+    #u0*=pad
+    
+       
     # initial guess
-    u = np.zeros([nz, n, n], dtype='complex64')
-    psi = data.copy()
-    lamd = np.zeros([ntheta, nz, n], dtype='complex64')
+    u = np.zeros([nz, n, n], dtype='float32')
+    lamd = np.zeros([ntheta, nz, n], dtype='float32')
     flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
     # optical flow parameters
     pars = [0.5, 3, 128, 4, 5, 1.1, 0]
 
-    # ADMM solver
-    with tc.SolverTomo(theta, ntheta, nz, n, pnz, center) as tslv:
-        reccg = tslv.cg_tomo_batch(data, u, 64)
-        dxchange.write_tiff(reccg.real, 'reccgre', overwrite=True)
-        dxchange.write_tiff(reccg.imag, 'reccgim', overwrite=True)
-        with dc.SolverDeform(ntheta, nz, n) as dslv:
+   # ADMM solver
+    with tc.SolverTomo(theta, ntheta, nz, n, pnz, center,1) as tslv:
+         data = tslv.fwd_tomo_batch(u0)
+         with dc.SolverDeform(ntheta, nz, n,ntheta) as dslv:
+            data = deform_data(data).astype('float32')            
+            psi = data.copy()
+ 
+            mmin, mmax = find_min_max(data)
             rho = 0.5
+
             h0 = psi
             for k in range(niter):
                 # registration
-                flow = dslv.registration_batch(psi, data, flow, pars)
-                # deformation subproblem
-                psi = dslv.cg_deform(data, psi, flow, 4,
+                b = dslv.apply_flow_gpu_batch(psi,flow)
+                print('b',np.linalg.norm(b-data))
+                dxchange.write_tiff(b[psi.shape[0]//2],'res/b')
+                flow = dslv.registration_flow_batch(psi, data, mmin,mmax, flow, pars,20)
+                b = dslv.apply_flow_gpu_batch(psi,flow)
+                print('a',np.linalg.norm(b-data))
+                dxchange.write_tiff(b[psi.shape[0]//2],'res/b')
+                
+                psi = dslv.cg_deform_gpu_batch(data, psi, flow, 4,
                                      tslv.fwd_tomo_batch(u)+lamd/rho, rho)
                 # tomo subproblem
-                u = tslv.cg_tomo_batch2(psi-lamd/rho, u, 4)
+                u = tslv.cg_tomo_batch(psi-lamd/rho, u, 4)
                 h = tslv.fwd_tomo_batch(u)
                 # lambda update
                 lamd = lamd+rho*(h-psi)
 
                 # checking intermediate results
-                myplot(u, psi, flow, theta)
-                if(np.mod(k, 4) == 0):  # check Lagrangian
-                    Tpsi = dslv.apply_flow_batch(psi, flow)
+                #myplot(u, psi, flow, theta)
+                if(np.mod(k, 1) == 0):  # check Lagrangian
+                    Tpsi = dslv.apply_flow_gpu_batch(psi, flow)
                     lagr = np.zeros(4)
                     lagr[0] = np.linalg.norm(Tpsi-data)**2
                     lagr[1] = np.sum(np.real(np.conj(lamd)*(h-psi)))
                     lagr[2] = rho*np.linalg.norm(h-psi)**2
                     lagr[3] = np.sum(lagr[0:3])
                     print(k, pars[2], np.linalg.norm(flow), rho, lagr)
-                    dxchange.write_tiff_stack(
-                        u.real,  'tmp2'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
-                    dxchange.write_tiff_stack(
-                        psi.real, 'tmp2'+'_'+str(ntheta)+'/psir'+str(k)+'/r',  overwrite=True)
+                  #  dxchange.write_tiff_stack(
+                   #     u.real,  'tmp2'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
+                   # dxchange.write_tiff_stack(
+                    #    psi.real, 'tmp2'+'_'+str(ntheta)+'/psir'+str(k)+'/r',  overwrite=True)
 
                 # Updates
                 rho = update_penalty(psi, h, h0, rho)
