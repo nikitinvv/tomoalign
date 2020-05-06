@@ -1,0 +1,4 @@
+CUDA_VISIBLE_DEVICES=0,1,2,3 python admm.py 4 200 /local/data/vnikitin/Chip_9100eV_interlaced_200prj_per_rot_3000prj_1s_002/Chip_9100eV_interlaced_200prj_per_rot_3000prj_1s_002 &
+CUDA_VISIBLE_DEVICES=4,5,6,7 python admm.py 8 200 /local/data/vnikitin/Chip_9100eV_interlaced_200prj_per_rot_3000prj_1s_002/Chip_9100eV_interlaced_200prj_per_rot_3000prj_1s_002 &
+#CUDA_VISIBLE_DEVICES=0,1,2,3 python admm.py 15 200 /local/data/vnikitin/Chip_9100eV_interlaced_200prj_per_rot_3000prj_1s_002/Chip_9100eV_interlaced_200prj_per_rot_3000prj_1s_002 &
+#CUDA_VISIBLE_DEVICES=4,5,6,7 python admm.py 2 200 /local/data/vnikitin/Chip_9100eV_interlaced_200prj_per_rot_3000prj_1s_002/Chip_9100eV_interlaced_200prj_per_rot_3000prj_1s_002 &
