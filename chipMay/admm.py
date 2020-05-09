@@ -115,11 +115,11 @@ if __name__ == "__main__":
     data = np.zeros([ndsets*nth,2048//pow(2,binning),2448//pow(2,binning)],dtype='float32')
     theta = np.zeros(ndsets*nth,dtype='float32')
     for k in range(ndsets):
-        data[k*nth:(k+1)*nth] = np.load(name+'_bin1'+str(k)+'.npy').astype('float32')                                   
+        data[k*nth:(k+1)*nth] = np.load(name+'_abin1'+str(k)+'.npy').astype('float32')                                   
         theta[k*nth:(k+1)*nth] = np.load(name+'_theta'+str(k)+'.npy').astype('float32')
     
     data[np.isnan(data)]=0    
-    center = 1184
+    center = 1187
     print('shape',data.shape,'center',center//pow(2,binning))
     
     [ntheta, nz, n] = data.shape  # object size n x,y
@@ -138,13 +138,13 @@ if __name__ == "__main__":
 
     flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
     # optical flow parameters
-    pars = [0.5,0, 1024, 4, 5, 1.1, 4]
+    pars = [0.5,0, 512, 4, 5, 1.1, 4]
 
     # ADMM solver
     with tc.SolverTomo(theta, ntheta, nz, n, pnz, center/pow(2, binning), ngpus) as tslv:
-        ucg = tslv.cg_tomo_batch(data, u, niter)
-        dxchange.write_tiff_stack(
-                        ucg,  name+'/cg'+'_'+str(ntheta)+'/rect'+'/r', overwrite=True)
+        #ucg = tslv.cg_tomo_batch(data, u, niter)
+        #dxchange.write_tiff_stack(
+         #               ucg,  name+'/cg'+'_'+str(ntheta)+'/rect'+'/r', overwrite=True)
         with dc.SolverDeform(ntheta, nz, n, ptheta) as dslv:
             rho = 0.5
             h0 = psi
@@ -189,6 +189,6 @@ if __name__ == "__main__":
                 rho = update_penalty(psi, h, h0, rho)
                 h0 = h
                 if(pars[2] >= 16):
-                    pars[2] -= 4
+                    pars[2] -= 2
                 sys.stdout.flush()
                 gc.collect()

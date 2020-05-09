@@ -32,22 +32,17 @@ import gc
 # prj = tomopy.downsample(prj, level=1)
 # prj = tomopy.downsample(prj, level=1, axis=1)
 # np.save('/local/data/viktor/brain_rec/cprjbin2p2',prj)        
-def find_min_max(data):
-    s = np.std(data,axis=(1,2))    
-    m = np.mean(data,axis=(1,2))
-    mmin = m-2*s
-    mmax = m+2*s
-    return mmin,mmax
+
 
 if __name__ == "__main__":
-    binning = 2
+    binning = 1
     ndsets = np.int(sys.argv[1])
     nth = np.int(sys.argv[2])
     name = sys.argv[3]
     data = np.zeros([ndsets*nth,2048//pow(2,binning),2448//pow(2,binning)],dtype='float32')
     theta = np.zeros(ndsets*nth,dtype='float32')
     for k in range(ndsets):
-        data[k*nth:(k+1)*nth] = np.load(name+'_bin2'+str(k)+'.npy').astype('float32')                                   
+        data[k*nth:(k+1)*nth] = np.load(name+'_abin'+str(binning)+str(k)+'.npy').astype('float32')                                   
         theta[k*nth:(k+1)*nth] = np.load(name+'_theta'+str(k)+'.npy').astype('float32')
     
     data=data[:,data.shape[1]//2:data.shape[1]//2+1]
