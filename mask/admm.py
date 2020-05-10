@@ -9,20 +9,11 @@ import matplotlib.pyplot as plt
 import matplotlib
 from timing import tic,toc
 import gc
-#import tomopy 
-# matplotlib.use('Agg')
-# def myplot(u, psi, flow, binning):
-#     ids = np.argsort(np.linalg.norm(flow,axis=(1,2,3)))[::-1]
-#     [ntheta, nz, n] = psi.shape
 
-#     plt.figure(figsize=(20, 14))
-#     for k in range(4):
-#         plt.subplot(2, 4, k+1)
-#         tit = 'y:',flow[ids[k],0],'x:',flow[ids[k],1]
-#         plt.title(tit)
-#         plt.imshow(psi[ids[k]], cmap='gray')
-#name='/local/data/viktor/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167'
-
+#Run1_8keV_phase_interlaced_100prj_per_rot_1201prj_1s_006.h5 center 1204
+#Run21_40min_8keV_phase_interlaced_1201prj_1s_012 center 1187
+#PAN_PI_PBI_new_ROI_8keV_phase_interlaced_2000prj_1s_042 center 1250
+#PAN_PI_ROI2_8keV_phase_interlaced_1201prj_0.5s_037.h5 center 1227
 def myplot(u, psi, flow, binning):
     [ntheta, nz, n] = psi.shape
 
@@ -108,19 +99,29 @@ if __name__ == "__main__":
     for k in range(ndsets):
         data[k*nth:(k+1)*nth] = np.load(name+'_bin'+str(binning)+str(k)+'.npy').astype('float32')                                   
         theta[k*nth:(k+1)*nth] = np.load(name+'_theta'+str(k)+'.npy').astype('float32')
-    
-    data[np.isnan(data)]=0    
-    center = 1226
-    print('shape',data.shape,'center',center//pow(2,binning))
-    
     [ntheta, nz, n] = data.shape  # object size n x,y
+   
+    data[np.isnan(data)]=0    
     data-=np.mean(data)
     mmin,mmax = find_min_max(data)
     print(mmin,mmax)
+    # pad data    
+    ne = 3456//pow(2,binning)
+    #ne=n
+    print(ne)
+    datae = np.zeros([ntheta,nz,ne],dtype='float32')
+    datae[:,:,ne//2-n//2:ne//2+n//2]=data
+    datae[:,:,:ne//2-n//2]=datae[:,:,ne//2-n//2:ne//2-n//2+1]
+    datae[:,:,ne//2+n//2:]=datae[:,:,ne//2+n//2-1:ne//2+n//2]
+    data=datae
+    center = 1187+(ne//2-n//2)*pow(2,binning)
+    n=ne
+    print('shape',data.shape,'center',center//pow(2,binning))
+    
     #dxchange.write_tiff_stack(data,name+'/data')
     niter = 128  # tomography iterations
-    pnz = 8  # number of slice partitions for simultaneous processing in tomography
-    ptheta = 50
+    pnz = 4*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
+    ptheta = 25*pow(2,binning)
     ngpus = 8
     # initial guess
     u = np.zeros([nz, n, n], dtype='float32')
@@ -130,13 +131,16 @@ if __name__ == "__main__":
 
     flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
     # optical flow parameters
-    pars = [0.5,0, 512, 4, 5, 1.1, 4]
+    pars = [0.5,0, 1024//pow(2,binning), 4, 5, 1.1, 4]
 
     # ADMM solver
     with tc.SolverTomo(theta, ntheta, nz, n, pnz, center/pow(2, binning), ngpus) as tslv:
-        ucg = tslv.cg_tomo_batch(data, u, niter)
-        dxchange.write_tiff_stack(
-                        ucg,  name+'/cg'+'_'+str(ntheta)+'/rect'+'/r', overwrite=True)
+        # tic()
+        # ucg = tslv.cg_tomo_batch(data, u, niter, dbg=True)
+        # t=toc()
+        # print(t)
+        # dxchange.write_tiff_stack(
+        #                 ucg,  name+'/cg'+'_'+str(ntheta)+'_'+str(binning)+'/rect'+'/r', overwrite=True)        
         with dc.SolverDeform(ntheta, nz, n, ptheta) as dslv:
             rho = 0.5
             h0 = psi
@@ -144,7 +148,7 @@ if __name__ == "__main__":
                 # registration
                 tic()
                 flow = dslv.registration_flow_batch(
-                      psi, data, mmin, mmax, flow, pars, 20)                
+                      psi, data, mmin, mmax, flow, pars, 40)                
                 t1 = toc()
                 tic()
                 
@@ -170,10 +174,10 @@ if __name__ == "__main__":
                     lagr[1] = np.sum(np.real(np.conj(lamd)*(h-psi)))
                     lagr[2] = rho/2*np.linalg.norm(h-psi)**2
                     lagr[3] = np.sum(lagr[0:3])
-                    print(k, pars[2], np.linalg.norm(
-                        flow), rho, lagr, t1, t2, t3)
+                    print("%d %d %.2e %.2f %.4e %.4e %.4e %.4e %d %d %d" % (k, pars[2], np.linalg.norm(
+                        flow), rho, *lagr, t1, t2, t3))
                     dxchange.write_tiff_stack(
-                        u,  name+'/fw_'+str(binning)+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
+                        u,  name+'/pfw_'+str(binning)+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
                     # dxchange.write_tiff_stack(
                     #   psi.real, '/local/data/viktor/brain_rec/ccc'+str(binning)+'_'+str(ntheta)+'/psir'+str(k)+'/r',  overwrite=True)
 
@@ -181,7 +185,7 @@ if __name__ == "__main__":
                 rho = update_penalty(psi, h, h0, rho)
                 h0 = h
                 if(pars[2] >= 20):
-                    pars[2] -= 4
+                    pars[2] -= 8//pow(2,binning)
                 sys.stdout.flush()
                 gc.collect()
 # for k in range(ntheta):
