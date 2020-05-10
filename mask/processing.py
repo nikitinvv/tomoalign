@@ -16,7 +16,7 @@ sino_end = 2048
 flat_field_norm = True
 flat_field_drift_corr = False  # Correct the intensity drift
 remove_rings = True
-binning = 1
+binning = 2
 ######################################################################################################################
 
 
