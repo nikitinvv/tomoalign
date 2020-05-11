@@ -25,7 +25,6 @@ if __name__ == "__main__":
         data[k*nth:(k+1)*nth] = np.load(name+'_bin1'+str(k)+'.npy').astype('float32')                                   
         theta[k*nth:(k+1)*nth] = np.load(name+'_theta'+str(k)+'.npy').astype('float32')
     np.save(name+'_abin'+str(binning)+str(0),data[:nth])
-    exit()  
     for j in range(1,ndsets):
         for k in range(0,nth):
             p = skimage.feature.register_translation(data[0+k], data[nth*j+k], upsample_factor=1, space='real', return_error=False)

@@ -126,7 +126,8 @@ if __name__ == "__main__":
     data-=np.mean(data)
     mmin,mmax = find_min_max(data)
     print(mmin,mmax)
-    niter = 256  # tomography iterations
+    
+    niter = 128  # tomography iterations
     pnz = 32  # number of slice partitions for simultaneous processing in tomography
     ptheta = 100
     ngpus = 4
@@ -152,7 +153,7 @@ if __name__ == "__main__":
                 # registration
                 tic()
                 flow = dslv.registration_flow_batch(
-                      psi, data, mmin, mmax, flow, pars, 20)
+                      psi, data, mmin, mmax, flow, pars, 40)
                 
                 t1 = toc()
                 tic()
@@ -180,8 +181,9 @@ if __name__ == "__main__":
                     lagr[1] = np.sum(np.real(np.conj(lamd)*(h-psi)))
                     lagr[2] = rho/2*np.linalg.norm(h-psi)**2
                     lagr[3] = np.sum(lagr[0:3])
-                    print(k, pars[2], np.linalg.norm(
-                        flow), rho, lagr, t1, t2, t3)
+                    print("%d %d %.2e %.2f %.4e %.4e %.4e %.4e %d %d %d" % (k, pars[2], np.linalg.norm(
+                        flow), rho, *lagr, t1, t2, t3))
+                   
                     dxchange.write_tiff_stack(
                         u,  name+'/fw_'+str(binning)+'_'+str(ntheta)+'_'+str(niter)+'/rect'+str(k)+'/r', overwrite=True)
                     
@@ -189,6 +191,6 @@ if __name__ == "__main__":
                 rho = update_penalty(psi, h, h0, rho)
                 h0 = h
                 if(pars[2] >= 16):
-                    pars[2] -= 2
+                    pars[2] -= 4
                 sys.stdout.flush()
                 gc.collect()
