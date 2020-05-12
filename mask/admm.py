@@ -14,6 +14,10 @@ import gc
 #Run21_40min_8keV_phase_interlaced_1201prj_1s_012 center 1187
 #PAN_PI_PBI_new_ROI_8keV_phase_interlaced_2000prj_1s_042 center 1250
 #PAN_PI_ROI2_8keV_phase_interlaced_1201prj_0.5s_037.h5 center 1227
+#PAN_PI_PBI_new_ROI_8keV_phase_interlaced_1201prj_0.5s_041 1248
+#Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024 1202 - 7x100
+center = 1204
+ngpus = 8
 def myplot(u, psi, flow, binning):
     [ntheta, nz, n] = psi.shape
 
@@ -114,7 +118,7 @@ if __name__ == "__main__":
     datae[:,:,:ne//2-n//2]=datae[:,:,ne//2-n//2:ne//2-n//2+1]
     datae[:,:,ne//2+n//2:]=datae[:,:,ne//2+n//2-1:ne//2+n//2]
     data=datae
-    center = 1187+(ne//2-n//2)*pow(2,binning)
+    center = center+(ne//2-n//2)*pow(2,binning)
     n=ne
     print('shape',data.shape,'center',center//pow(2,binning))
     
@@ -122,7 +126,6 @@ if __name__ == "__main__":
     niter = 128  # tomography iterations
     pnz = 4*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
     ptheta = 25*pow(2,binning)
-    ngpus = 8
     # initial guess
     u = np.zeros([nz, n, n], dtype='float32')
     psi = data.copy()
@@ -135,12 +138,12 @@ if __name__ == "__main__":
 
     # ADMM solver
     with tc.SolverTomo(theta, ntheta, nz, n, pnz, center/pow(2, binning), ngpus) as tslv:
-        # tic()
-        # ucg = tslv.cg_tomo_batch(data, u, niter, dbg=True)
-        # t=toc()
-        # print(t)
-        # dxchange.write_tiff_stack(
-        #                 ucg,  name+'/cg'+'_'+str(ntheta)+'_'+str(binning)+'/rect'+'/r', overwrite=True)        
+        tic()
+        ucg = tslv.cg_tomo_batch(data, u, niter, dbg=True)
+        t=toc()
+        print(t)
+        dxchange.write_tiff_stack(
+                        ucg,  name+'/cg'+'_'+str(ntheta)+'_'+str(binning)+'_'+str(niter)+'/rect'+'/r', overwrite=True)        
         with dc.SolverDeform(ntheta, nz, n, ptheta) as dslv:
             rho = 0.5
             h0 = psi

@@ -17,7 +17,7 @@ def find_min_max(data):
     return mmin,mmax
 
 if __name__ == "__main__":
-    binning = 1
+    binning = 2
     ndsets = np.int(sys.argv[1])
     nth = np.int(sys.argv[2])
     name = sys.argv[3]
