@@ -5,10 +5,6 @@ import h5py
 import sys
 import skimage.feature
 
-#name = '/local/data/viktor/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167' # handyn
-# name = '/local/data/vnikitin/brain/Brain_Petrapoxy_1201prj_200ms_50nmZP_abs_150'#mona3
-# name = '/local/data/vnikitin/brain/Brain_Petrapoxy_721prj_1s_50nmZP_abs_149'#mona3
-# name = '/local/data/vnikitin/brain/Brain_Petrapoxy_721prj_1s_50nmZP_abs_ROI2_153'#mona3
 ##################################### Inputs #########################################################################
 ndsets = np.int(sys.argv[1])
 theta_start = 0
@@ -29,7 +25,7 @@ def preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remov
     if FF_norm:  # dark-flat field correction
         prj = tomopy.normalize(prj, flat, dark)
     if FF_drift_corr:  # flat field drift correction
-        prj = tomopy.normalize_bg(prj, air=100)
+        prj = tomopy.normalize_bg(prj, air=50)
     prj[prj <= 0] = 1  # check dark<data
     prj = tomopy.minus_log(prj)  # -logarithm
     if remove_rings:  # remove rings
@@ -53,6 +49,6 @@ if __name__ == "__main__":
         prj = preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remove_rings,
                             FF_drift_corr=flat_field_drift_corr, downsapling=binning)
 
-        np.save(name+'_bin2'+str(k),prj)        
+        np.save(name+'_bin'+str(binning)+str(k),prj)        
         np.save(name+'_theta'+str(k),theta)  
             
