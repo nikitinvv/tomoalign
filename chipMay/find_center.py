@@ -42,7 +42,7 @@ if __name__ == "__main__":
     data = np.zeros([ndsets*nth,2048//pow(2,binning),2448//pow(2,binning)],dtype='float32')
     theta = np.zeros(ndsets*nth,dtype='float32')
     for k in range(ndsets):
-        data[k*nth:(k+1)*nth] = np.load(name+'_abin'+str(binning)+str(k)+'.npy').astype('float32')                                   
+        data[k*nth:(k+1)*nth] = np.load(name+'_bin'+str(binning)+str(k)+'.npy').astype('float32')                                   
         theta[k*nth:(k+1)*nth] = np.load(name+'_theta'+str(k)+'.npy').astype('float32')
     
     data=data[:,data.shape[1]//2:data.shape[1]//2+1]

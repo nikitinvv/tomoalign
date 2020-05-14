@@ -17,11 +17,11 @@ if __name__ == "__main__":
 
     print(data.shape)
     #data = data.swapaxes(0,1)
-    #data = data[:,:,(128*2)//pow(2,binning):(600*2)//pow(2,binning)]
+    #data = data[:,:,(128*2)//pow(2,binning):(600*2)//pow(2,binni1)]
     data = rotate(data, -29.5, reshape=False, axes=(1, 2), order=1)
     #data = data[:,:,300//pow(2,binning):-300//pow(2,binning)]
     #data = data.swapaxes(1,2)
-    #data = rotate(data, -0.4, reshape=False, axes=(1, 2), order=3)
+    #data = rotate(data, -0.4, reshape=False, axes=(1, 2), order=5)
     data = data.swapaxes(0,2)
     data = rotate(data, -52, reshape=False, axes=(1, 2), order=1)
     data = data.swapaxes(0,1)

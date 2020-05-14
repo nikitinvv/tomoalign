@@ -16,7 +16,7 @@ sino_end = 2048
 flat_field_norm = True
 flat_field_drift_corr = False  # Correct the intensity drift
 remove_rings = True
-binning = 2
+binning = 3
 ######################################################################################################################
 
 
@@ -25,7 +25,7 @@ def preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remov
     if FF_norm:  # dark-flat field correction
         prj = tomopy.normalize(prj, flat, dark)
     if FF_drift_corr:  # flat field drift correction
-        prj = tomopy.normalize_bg(prj, air=100)
+        prj = tomopy.normalize_bg(prj, air=50)
     prj[prj <= 0] = 1  # check dark<data
     prj = tomopy.minus_log(prj)  # -logarithm
     if remove_rings:  # remove rings
