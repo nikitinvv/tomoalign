@@ -12,12 +12,14 @@ import gc
 import scipy.ndimage as ndimage
 matplotlib.use('Agg')
 centers={
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_721prj_180deg_1s_170': 1211,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167': 1224,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/chipMay/Chip_ZP_16nmZP_9100eV_interlaced_3000prj_3s_068': 1249-456,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/chipMay/Chip_ZP_16nmZP_9100eV_interlaced_3000prj_stabiliz_2s_3s_073':1249-456,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/chipMay/Chip_ZP_16nmZP_9100eV_interlaced_3000prj_stabiliz_2s_3s_074':1249-456,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/chipMay/Chip_ZP_16nmZP_9100eV_interlaced_3000prj_stabiliz_2s_3s_075':1249-456,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/chipMay/Chip_ZP_16nmZP_9100eV_interlaced_3000prj_stabiliz_2s_3s_076':1249-456,
 }
 ngpus = 4
-
-def myplot(u, psi, flow, binning):
+def myplot(u, psi, flow, binning,center):
     [ntheta, nz, n] = psi.shape
 
     plt.figure(figsize=(20, 14))
@@ -53,11 +55,11 @@ def myplot(u, psi, flow, binning):
 
     plt.subplot(3, 4, 12)
     plt.imshow(u[:, :, n//2], cmap='gray')
-    if not os.path.exists(name+'/flowfw_'+'_'+str(ntheta)):
+    if not os.path.exists(name+'/bin12flowfw_'+'_'+str(ntheta)):
         os.makedirs(
-            name+'/flowfw_'+'_'+str(ntheta))
+            name+'/bin12flowfw_'+'_'+str(ntheta))
     plt.savefig(
-        name+'/flowfw_'+'_'+str(ntheta)+'/'+str(k))
+        name+'/bin12flowfw_'+'_'+str(ntheta)+'/'+str(k))
     plt.close()
 
 
@@ -113,31 +115,39 @@ if __name__ == "__main__":
 
     ndsets = np.int(sys.argv[1])
     nth = np.int(sys.argv[2])
-    name = sys.argv[3]   
+    nmerged = np.int(sys.argv[3])
+    name = sys.argv[4]   
     
-    w = [256,128,64]
-    niter = [48,24,12]
-    binnings=[3,2,1]
+    w = [384,180,90]
+    niter = [75,45,40]
+    #niter=[1,1,1]
+    binnings=[2,1,0]
     # ADMM solver
-    for il in range(3):
+    for il in range(2):
         binning = binnings[il]
-        data = np.zeros([ndsets*nth,2048//pow(2,binning),2448//pow(2,binning)],dtype='float32')
-        theta = np.zeros(ndsets*nth,dtype='float32')
-        for k in range(ndsets):
-            data[k*nth:(k+1)*nth] = np.load(name+'_bin'+str(binning)+str(k)+'.npy').astype('float32')                                   
-            theta[k*nth:(k+1)*nth] = np.load(name+'_theta'+str(k)+'.npy').astype('float32')
-            [ntheta, nz, n] = data.shape  # object size n x,y
+        data = np.zeros([ndsets*nth*nmerged,1536//pow(2,binning),1536//pow(2,binning)],dtype='float32')
+        theta = np.zeros(ndsets*nth*nmerged,dtype='float32')
+
+        for imerged in range(nmerged):
+            for k in range(ndsets):
+                data[k*nth+ndsets*nth*imerged:(k+1)*nth+ndsets*nth*imerged] = np.load(name[:-1]+str(int(name[-1])+imerged)+'_bin'+str(binning)+str(k)+'.npy').astype('float32')                                   
+                theta[k*nth+ndsets*nth*imerged:(k+1)*nth+ndsets*nth*imerged] = np.load(name[:-1]+str(int(name[-1])+imerged)+'_theta'+str(k)+'.npy').astype('float32')
+        
         [ntheta, nz, n] = data.shape  # object size n x,y
-   
+           # print(theta[k*nth:(k+1)*nth])
+       # exit()
+       # data=data[:,256//pow(2,binning):-256//pow(2,binning),256//pow(2,binning):-256//pow(2,binning)]
+        [ntheta, nz, n] = data.shape  # object size n x,y
         data[np.isnan(data)]=0            
         data-=np.mean(data)
         mmin,mmax = find_min_max(data)
         # pad data    
-        ne = 3456//pow(2,binning)    
+        ne = 2048//pow(2,binning)    
         #ne=n
-        center = centers[sys.argv[3]]+(ne//2-n//2)*pow(2,binning)        
+        center = 1249-456+(ne//2-n//2)*pow(2,binning)#-256#not binned!
         pnz = 8*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
-        ptheta = 60
+        ptheta = 30
+        # initial guess
 
         if(il==0):
             u = np.zeros([nz, ne, ne], dtype='float32')
@@ -145,7 +155,14 @@ if __name__ == "__main__":
             lamd = np.zeros([ntheta, nz, n], dtype='float32')
             flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
         else:            
+            #print(flow[0,:4,:4,:])           
             u, psi, lamd, flow = interpdense(u,psi,lamd,flow)
+        # print(flow[0,:4,:4,:])  
+            # print(np.linalg.norm(u))
+            # print(np.linalg.norm(u1[::2,::2,::2]-u))
+            # print(np.linalg.norm(psi1[:,::2,::2]-psi))
+            # print(np.linalg.norm(lamd1[:,::2,::2]-lamd))
+            # print(np.linalg.norm(flow1[:,::2,::2]-flow))
         
         # optical flow parameters
         pars = [0.5,0, w[il], 4, 5, 1.1, 4]
@@ -156,18 +173,19 @@ if __name__ == "__main__":
                 for k in range(niter[il]):
                     # registration
                     flow = dslv.registration_flow_batch(
-                        psi, data, mmin, mmax, flow.copy(), pars, 20) 
+                        psi, data, mmin, mmax, flow.copy(), pars, 30) 
+                    
                     # deformation subproblem
                     psi = dslv.cg_deform_gpu_batch(data, psi, flow, 4,
                                                 unpad(tslv.fwd_tomo_batch(u),ne,n)+lamd/rho, rho)
                     # tomo subproblem
-                    u = tslv.cg_tomo_batch(pad(psi-lamd/rho,ne,n), u, 4)                    
+                    u = tslv.cg_tomo_batch(pad(psi-lamd/rho,ne,n), u, 4)
                     h = unpad(tslv.fwd_tomo_batch(u),ne,n)
                     # lambda update
                     lamd = lamd+rho*(h-psi)
 
                     # checking intermediate results
-                    myplot(u, psi, flow, binning)
+                    #myplot(u, psi, flow, binning, center)
                     if(np.mod(k,4)==0):  # check Lagrangian
                         Tpsi = dslv.apply_flow_gpu_batch(psi, flow)
                         lagr = np.zeros(4)
@@ -177,14 +195,14 @@ if __name__ == "__main__":
                         lagr[3] = np.sum(lagr[0:3])
                         print("%d %d %.2e %.2f %.4e %.4e %.4e %.4e " % (k, pars[2], np.linalg.norm(
                             flow), rho, *lagr))
-                        sys.stdout.flush()           
                         dxchange.write_tiff_stack(
-                            u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  name+'/fw_'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
-                        dxchange.write_tiff_stack(
-                        psi.real, name+'/fw_'+'_'+str(ntheta)+'/psi'+str(k)+'/r', overwrite=True)
+                            u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  name+'/bin12fw_'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
+                        #dxchange.write_tiff_stack(
+                       # psi.real, name+'/bin12fw_'+'_'+str(ntheta)+'/psi'+str(k)+'/r', overwrite=True)
 
                     # Updates
                     rho = update_penalty(psi, h, h0, rho)
                     h0 = h
-                    pars[2] -= 4                                
+                    pars[2] -= 4
+                    sys.stdout.flush()
                     gc.collect()

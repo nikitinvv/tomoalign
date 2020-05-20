@@ -9,14 +9,14 @@ import skimage.feature
 ndsets = np.int(sys.argv[1])
 theta_start = 0
 theta_end = np.int(sys.argv[2])
-name = sys.argv[3]
+name = sys.argv[4]
 file_name = name+'.h5'
 sino_start = 0
 sino_end = 2048
 flat_field_norm = True
 flat_field_drift_corr = False  # Correct the intensity drift
 remove_rings = True
-binning = 1
+binning = np.int(sys.argv[3])
 ######################################################################################################################
 
 

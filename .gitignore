@@ -8,6 +8,7 @@ __pycache__/
 3Dstd/*.npy
 *.tiff
 *.png
+slurm*
 # tmp
 tmp*
 3Dstd/tmp*

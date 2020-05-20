@@ -16,7 +16,6 @@ centers={
 '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167': 1224,
 }
 ngpus = 4
-
 def myplot(u, psi, flow, binning):
     [ntheta, nz, n] = psi.shape
 
@@ -53,11 +52,11 @@ def myplot(u, psi, flow, binning):
 
     plt.subplot(3, 4, 12)
     plt.imshow(u[:, :, n//2], cmap='gray')
-    if not os.path.exists(name+'/flowfw_'+'_'+str(ntheta)):
+    if not os.path.exists(name+'/shiftflowfw_'+'_'+str(ntheta)):
         os.makedirs(
-            name+'/flowfw_'+'_'+str(ntheta))
+            name+'/shiftflowfw_'+'_'+str(ntheta))
     plt.savefig(
-        name+'/flowfw_'+'_'+str(ntheta)+'/'+str(k))
+        name+'/shiftflowfw_'+'_'+str(ntheta)+'/'+str(k))
     plt.close()
 
 
@@ -103,10 +102,46 @@ def unpad(data,ne,n):
     return data[:,:,ne//2-n//2:ne//2+n//2]
 
 def interpdense(u,psi,lamd,flow):
-    unew = ndimage.zoom(u,2,order=1)
-    psinew = ndimage.zoom(psi,(1,2,2),order=1)
-    lamdnew = ndimage.zoom(lamd,(1,2,2),order=1)
-    flownew = ndimage.zoom(flow,(1,2,2,1),order=1)*2    
+    [ntheta,nz,n]=psi.shape
+    #u
+    # fu=np.fft.fftshift(np.fft.fftn(np.fft.fftshift(u)))
+    # fue = np.zeros([2*nz,2*n,2*n],dtype='complex64')
+    # fue[nz//2:-nz//2,n//2:-n//2,n//2:-n//2]=fu
+    # u = np.fft.fftshift(np.fft.ifftn(np.fft.fftshift(fue))).real*8
+    # #
+    # [ntheta,nz,n]=psi.shape
+    
+    # fpsi=np.fft.fftshift(np.fft.fft2(np.fft.fftshift(psi)))
+    # fpsie = np.zeros([ntheta,2*nz,2*n],dtype='complex64')
+    # fpsie[:,nz//2:-nz//2,n//2:-n//2]=fpsi
+    # psi = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(fpsie))).real*4
+    # #
+    # flamd=np.fft.fftshift(np.fft.fft2(np.fft.fftshift(lamd)))
+    # flamde = np.zeros([ntheta,2*nz,2*n],dtype='complex64')
+    # flamde[:,nz//2:-nz//2,n//2:-n//2]=flamd
+    # lamd = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(flamde))).real*4
+    # #
+    # flownew = np.zeros([ntheta,2*nz,2*n,2],dtype='float32')    
+    # fflow=np.fft.fftshift(np.fft.fft2(np.fft.fftshift(flow[:,:,:,0])))
+    # fflowe = np.zeros([ntheta,2*nz,2*n],dtype='complex64')
+    # fflowe[:,nz//2:-nz//2,n//2:-n//2]=fflow
+    # flownew[:,:,:,0] = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(fflowe))).real*4
+
+    # fflow=np.fft.fftshift(np.fft.fft2(np.fft.fftshift(flow[:,:,:,1])))
+    # fflowe = np.zeros([ntheta,2*nz,2*n],dtype='complex64')
+    # fflowe[:,nz//2:-nz//2,n//2:-n//2]=fflow
+    # flownew[:,:,:,1] = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(fflowe))).real*4
+
+    unew = ndimage.zoom(u,2)
+    psinew = np.zeros([ntheta,2*nz,2*n],dtype='float32')    
+    lamdnew = np.zeros([ntheta,2*nz,2*n],dtype='float32')        
+    flownew = np.zeros([ntheta,2*nz,2*n,2],dtype='float32')    
+    for k in range(ntheta):
+        psinew[k] = ndimage.zoom(psi[k],2)
+        lamdnew[k] = ndimage.zoom(lamd[k],2)
+        flownew[k,:,:,0]=ndimage.zoom(flow[k,:,:,0],2,order=0)
+        flownew[k,:,:,1]=ndimage.zoom(flow[k,:,:,1],2,order=0)
+
     return unew,psinew,lamdnew,flownew
 
 if __name__ == "__main__":
@@ -115,8 +150,8 @@ if __name__ == "__main__":
     nth = np.int(sys.argv[2])
     name = sys.argv[3]   
     
-    w = [256,128,64]
-    niter = [48,24,12]
+    w = [512,1024,64]
+    niter = [48,24,13]
     binnings=[3,2,1]
     # ADMM solver
     for il in range(3):
@@ -148,7 +183,7 @@ if __name__ == "__main__":
             u, psi, lamd, flow = interpdense(u,psi,lamd,flow)
         
         # optical flow parameters
-        pars = [0.5,0, w[il], 4, 5, 1.1, 4]
+        pars = [0.5,0, ne, 4, 1, 1.1, 4]
         with tc.SolverTomo(theta, ntheta, nz, ne, pnz, center/pow(2, binning), ngpus) as tslv:
             with dc.SolverDeform(ntheta, nz, n, ptheta) as dslv:
                 rho = 0.5
@@ -179,12 +214,12 @@ if __name__ == "__main__":
                             flow), rho, *lagr))
                         sys.stdout.flush()           
                         dxchange.write_tiff_stack(
-                            u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  name+'/fw_'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
+                            u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  name+'/shiftfw_'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
                         dxchange.write_tiff_stack(
-                        psi.real, name+'/fw_'+'_'+str(ntheta)+'/psi'+str(k)+'/r', overwrite=True)
+                        psi.real, name+'/shiftfw_'+'_'+str(ntheta)+'/psi'+str(k)+'/r', overwrite=True)
 
                     # Updates
                     rho = update_penalty(psi, h, h0, rho)
                     h0 = h
-                    pars[2] -= 4                                
+                   # pars[2] -= 2                                           
                     gc.collect()

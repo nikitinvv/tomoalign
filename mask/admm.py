@@ -17,7 +17,14 @@ centers={
 '/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PAN_PI_PBI_new_ROI_8keV_phase_interlaced_2000prj_1s_042':  1250,
 '/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PAN_PI_ROI2_8keV_phase_interlaced_1201prj_0.5s_037':  1227,
 '/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PAN_PI_PBI_new_ROI_8keV_phase_interlaced_1201prj_0.5s_041': 1248,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024': 1202}
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024': 1202,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_PAN_8keV_phase_721prj_0.5s_045': 1244,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_PAN_8keV_phase_interlaced_1201prj_1s_046': 1241,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_PAN_ROI2_8keV_phase_interlaced_1201prj_0.5s_047': 1233,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_3h_8keV_phase_interlaced_1201prj_0.5s_047_049': 1226,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_3h_ROI2_8keV_phase_interlaced_1201prj_0.5s_047_050': 1209,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_3h_ROI3_8keV_phase_interlaced_721prj_0.5s_053': 1273,
+}
 ngpus = 4
 def myplot(u, psi, flow, binning):
     [ntheta, nz, n] = psi.shape
@@ -106,35 +113,6 @@ def unpad(data,ne,n):
 
 def interpdense(u,psi,lamd,flow):
     [ntheta,nz,n]=psi.shape
-    #u
-    # fu=np.fft.fftshift(np.fft.fftn(np.fft.fftshift(u)))
-    # fue = np.zeros([2*nz,2*n,2*n],dtype='complex64')
-    # fue[nz//2:-nz//2,n//2:-n//2,n//2:-n//2]=fu
-    # u = np.fft.fftshift(np.fft.ifftn(np.fft.fftshift(fue))).real*8
-    # #
-    # [ntheta,nz,n]=psi.shape
-    
-    # fpsi=np.fft.fftshift(np.fft.fft2(np.fft.fftshift(psi)))
-    # fpsie = np.zeros([ntheta,2*nz,2*n],dtype='complex64')
-    # fpsie[:,nz//2:-nz//2,n//2:-n//2]=fpsi
-    # psi = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(fpsie))).real*4
-    # #
-    # flamd=np.fft.fftshift(np.fft.fft2(np.fft.fftshift(lamd)))
-    # flamde = np.zeros([ntheta,2*nz,2*n],dtype='complex64')
-    # flamde[:,nz//2:-nz//2,n//2:-n//2]=flamd
-    # lamd = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(flamde))).real*4
-    # #
-    # flownew = np.zeros([ntheta,2*nz,2*n,2],dtype='float32')    
-    # fflow=np.fft.fftshift(np.fft.fft2(np.fft.fftshift(flow[:,:,:,0])))
-    # fflowe = np.zeros([ntheta,2*nz,2*n],dtype='complex64')
-    # fflowe[:,nz//2:-nz//2,n//2:-n//2]=fflow
-    # flownew[:,:,:,0] = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(fflowe))).real*4
-
-    # fflow=np.fft.fftshift(np.fft.fft2(np.fft.fftshift(flow[:,:,:,1])))
-    # fflowe = np.zeros([ntheta,2*nz,2*n],dtype='complex64')
-    # fflowe[:,nz//2:-nz//2,n//2:-n//2]=fflow
-    # flownew[:,:,:,1] = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(fflowe))).real*4
-
     unew = ndimage.zoom(u,2)
     psinew = np.zeros([ntheta,2*nz,2*n],dtype='float32')    
     lamdnew = np.zeros([ntheta,2*nz,2*n],dtype='float32')        
@@ -175,10 +153,10 @@ if __name__ == "__main__":
         #ne=n
         center = centers[sys.argv[3]]+(ne//2-n//2)*pow(2,binning)        
         pnz = 8*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
-        ptheta = 50
+        ptheta = 60
         # initial guess
 
-        if(binning==3):
+        if(il==0):
             u = np.zeros([nz, ne, ne], dtype='float32')
             psi = data.copy()
             lamd = np.zeros([ntheta, nz, n], dtype='float32')
