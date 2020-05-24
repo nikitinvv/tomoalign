@@ -64,7 +64,7 @@ if __name__ == "__main__":
     name = sys.argv[3]   
     
     niter = 84
-    binning=1
+    binning=2
     data = np.zeros([ndsets*nth,2048//pow(2,binning),2448//pow(2,binning)],dtype='float32')
     theta = np.zeros(ndsets*nth,dtype='float32')
     for k in range(ndsets):
@@ -73,29 +73,30 @@ if __name__ == "__main__":
         [ntheta, nz, n] = data.shape  # object size n x,y
     [ntheta, nz, n] = data.shape  # object size n x,y
     data[np.isnan(data)]=0 
-    # for j in range(1,ndsets):
-    #     for k in range(0,nth):
-    #         p = skimage.feature.register_translation(data[0+k], data[nth*j+k], upsample_factor=1, space='real', return_error=False)
-    #         data[nth*j+k] = apply_shift(data[nth*j+k], p)
-
-               
     data-=np.mean(data)
-    mmin,mmax = find_min_max(data)
+    mmin,mmax = find_min_max(data[:nth])
+    flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
+    
     # pad data    
     ne = 3456//pow(2,binning)    
-    #ne=n
     center = centers[sys.argv[3]]+(ne//2-n//2)*pow(2,binning)        
     pnz = 8*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
     ptheta = 60
 
-       
+    pars = [0.5,0, ne, 32, 1, 1.1, 4]
+    
+    with dc.SolverDeform(nth, nz, n, 30) as dslv:
+        for j in range(1,ndsets):
+            flow = dslv.registration_flow_batch(
+                        data[nth*j:nth*(j+1)], data[:nth], mmin, mmax, flow.copy(), pars, 20) 
+            print('b',np.linalg.norm(data[nth*j:nth*(j+1)]-data[:nth]))
+            data[nth*j:nth*(j+1)] = dslv.apply_flow_gpu_batch(data[nth*j:nth*(j+1)], flow)               
+            print('a',np.linalg.norm(data[nth*j:nth*(j+1)]-data[:nth]))
     u = np.zeros([nz, ne, ne], dtype='float32')
-    psi = data.copy()
-    lamd = np.zeros([ntheta, nz, n], dtype='float32')
-    flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
-       
+    psi = data.copy()    
+    
     with tc.SolverTomo(theta, ntheta, nz, ne, pnz, center/pow(2, binning), ngpus) as tslv:
         u = tslv.cg_tomo_batch(pad(psi,ne,n), u, niter)     
         dxchange.write_tiff_stack(
-                        u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  name+'/cg_'+'_'+str(ntheta)+'/rect''/r', overwrite=True)
+                        u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  name+'/alignedcg_'+str(binning)+'_'+str(ntheta)+'/rect''/r', overwrite=True)
         

@@ -55,11 +55,11 @@ def myplot(u, psi, flow, binning,center):
 
     plt.subplot(3, 4, 12)
     plt.imshow(u[:, :, n//2], cmap='gray')
-    if not os.path.exists(name+'/bin12flowfw_'+'_'+str(ntheta)):
+    if not os.path.exists(name+'/ti_bin12flowfw_'+'_'+str(ntheta)):
         os.makedirs(
-            name+'/bin12flowfw_'+'_'+str(ntheta))
+            name+'/ti_bin12flowfw_'+'_'+str(ntheta))
     plt.savefig(
-        name+'/bin12flowfw_'+'_'+str(ntheta)+'/'+str(k))
+        name+'/ti_bin12flowfw_'+'_'+str(ntheta)+'/'+str(k))
     plt.close()
 
 
@@ -108,7 +108,7 @@ def interpdense(u,psi,lamd,flow):
     unew = ndimage.zoom(u,2,order=1)
     psinew = ndimage.zoom(psi,(1,2,2),order=1)
     lamdnew = ndimage.zoom(lamd,(1,2,2),order=1)
-    flownew = ndimage.zoom(flow,(1,2,2,1),order=1)*2    
+    flownew = ndimage.zoom(flow,(1,2,2,1),order=1)/2    
     return unew,psinew,lamdnew,flownew
 
 if __name__ == "__main__":
@@ -118,8 +118,8 @@ if __name__ == "__main__":
     nmerged = np.int(sys.argv[3])
     name = sys.argv[4]   
     
-    w = [384,180,90]
-    niter = [75,45,40]
+    w = [384,200,100]
+    niter = [75,45,20]
     #niter=[1,1,1]
     binnings=[2,1,0]
     # ADMM solver
@@ -127,9 +127,10 @@ if __name__ == "__main__":
         binning = binnings[il]
         data = np.zeros([ndsets*nth*nmerged,1536//pow(2,binning),1536//pow(2,binning)],dtype='float32')
         theta = np.zeros(ndsets*nth*nmerged,dtype='float32')
-
-        for imerged in range(nmerged):
-            for k in range(ndsets):
+        for k in range(ndsets):
+            data[k*nth+ndsets*nth*0:(k+1)*nth+ndsets*nth*0] = np.load(name+'_ti_bin'+str(binning)+str(k)+'.npy').astype('float32')                                   
+            theta[k*nth+ndsets*nth*0:(k+1)*nth+ndsets*nth*0] = np.load(name+'_theta'+str(k)+'.npy').astype('float32')            
+            for imerged in range(1,nmerged):
                 data[k*nth+ndsets*nth*imerged:(k+1)*nth+ndsets*nth*imerged] = np.load(name[:-1]+str(int(name[-1])+imerged)+'_bin'+str(binning)+str(k)+'.npy').astype('float32')                                   
                 theta[k*nth+ndsets*nth*imerged:(k+1)*nth+ndsets*nth*imerged] = np.load(name[:-1]+str(int(name[-1])+imerged)+'_theta'+str(k)+'.npy').astype('float32')
         
@@ -137,7 +138,6 @@ if __name__ == "__main__":
            # print(theta[k*nth:(k+1)*nth])
        # exit()
        # data=data[:,256//pow(2,binning):-256//pow(2,binning),256//pow(2,binning):-256//pow(2,binning)]
-        [ntheta, nz, n] = data.shape  # object size n x,y
         data[np.isnan(data)]=0            
         data-=np.mean(data)
         mmin,mmax = find_min_max(data)
@@ -146,7 +146,7 @@ if __name__ == "__main__":
         #ne=n
         center = 1249-456+(ne//2-n//2)*pow(2,binning)#-256#not binned!
         pnz = 8*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
-        ptheta = 30
+        ptheta = 20
         # initial guess
 
         if(il==0):
@@ -157,7 +157,7 @@ if __name__ == "__main__":
         else:            
             #print(flow[0,:4,:4,:])           
             u, psi, lamd, flow = interpdense(u,psi,lamd,flow)
-        # print(flow[0,:4,:4,:])  
+        # print(flow[0,:4,:4,:])  =
             # print(np.linalg.norm(u))
             # print(np.linalg.norm(u1[::2,::2,::2]-u))
             # print(np.linalg.norm(psi1[:,::2,::2]-psi))
@@ -165,7 +165,7 @@ if __name__ == "__main__":
             # print(np.linalg.norm(flow1[:,::2,::2]-flow))
         
         # optical flow parameters
-        pars = [0.5,0, w[il], 4, 5, 1.1, 4]
+        pars = [0.5,1, w[il], 4, 5, 1.1, 4]
         with tc.SolverTomo(theta, ntheta, nz, ne, pnz, center/pow(2, binning), ngpus) as tslv:
             with dc.SolverDeform(ntheta, nz, n, ptheta) as dslv:
                 rho = 0.5
@@ -173,7 +173,7 @@ if __name__ == "__main__":
                 for k in range(niter[il]):
                     # registration
                     flow = dslv.registration_flow_batch(
-                        psi, data, mmin, mmax, flow.copy(), pars, 30) 
+                        psi, data, mmin, mmax, flow.copy(), pars, 20) 
                     
                     # deformation subproblem
                     psi = dslv.cg_deform_gpu_batch(data, psi, flow, 4,
@@ -185,7 +185,7 @@ if __name__ == "__main__":
                     lamd = lamd+rho*(h-psi)
 
                     # checking intermediate results
-                    #myplot(u, psi, flow, binning, center)
+                    myplot(u, psi, flow, binning, center)
                     if(np.mod(k,4)==0):  # check Lagrangian
                         Tpsi = dslv.apply_flow_gpu_batch(psi, flow)
                         lagr = np.zeros(4)
@@ -196,7 +196,7 @@ if __name__ == "__main__":
                         print("%d %d %.2e %.2f %.4e %.4e %.4e %.4e " % (k, pars[2], np.linalg.norm(
                             flow), rho, *lagr))
                         dxchange.write_tiff_stack(
-                            u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  name+'/bin12fw_'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
+                            u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  name+'/ti_bin12fw_'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
                         #dxchange.write_tiff_stack(
                        # psi.real, name+'/bin12fw_'+'_'+str(ntheta)+'/psi'+str(k)+'/r', overwrite=True)
 

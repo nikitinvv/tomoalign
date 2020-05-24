@@ -14,6 +14,7 @@ matplotlib.use('Agg')
 centers={
 '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_721prj_180deg_1s_170': 1211,
 '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167': 1224,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_4800prj_720deg_166': 1224,
 }
 ngpus = 4
 
@@ -103,11 +104,11 @@ def unpad(data,ne,n):
     return data[:,:,ne//2-n//2:ne//2+n//2]
 
 def interpdense(u,psi,lamd,flow):
-    unew = ndimage.zoom(u,2,order=1)
-    psinew = ndimage.zoom(psi,(1,2,2),order=1)
-    lamdnew = ndimage.zoom(lamd,(1,2,2),order=1)
-    flownew = ndimage.zoom(flow,(1,2,2,1),order=1)*2    
-    return unew,psinew,lamdnew,flownew
+    u = ndimage.zoom(u,2,order=1)
+    psi = ndimage.zoom(psi,(1,2,2),order=1)
+    lamd = ndimage.zoom(lamd,(1,2,2),order=1)
+    flow = ndimage.zoom(flow,(1,2,2,1),order=1)/2    
+    return u,psi,lamd,flow
 
 if __name__ == "__main__":
 
@@ -116,7 +117,8 @@ if __name__ == "__main__":
     name = sys.argv[3]   
     
     w = [256,128,64]
-    niter = [48,24,12]
+    niter = [48,24,13]
+    #niter=[2,2,2]
     binnings=[3,2,1]
     # ADMM solver
     for il in range(3):
@@ -126,37 +128,41 @@ if __name__ == "__main__":
         for k in range(ndsets):
             data[k*nth:(k+1)*nth] = np.load(name+'_bin'+str(binning)+str(k)+'.npy').astype('float32')                                   
             theta[k*nth:(k+1)*nth] = np.load(name+'_theta'+str(k)+'.npy').astype('float32')
-            [ntheta, nz, n] = data.shape  # object size n x,y
         [ntheta, nz, n] = data.shape  # object size n x,y
-   
+        
         data[np.isnan(data)]=0            
         data-=np.mean(data)
         mmin,mmax = find_min_max(data)
         # pad data    
-        ne = 3456//pow(2,binning)    
+        ne = 2560//pow(2,binning)    
         #ne=n
         center = centers[sys.argv[3]]+(ne//2-n//2)*pow(2,binning)        
         pnz = 8*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
-        ptheta = 60
-
+        ptheta = 20
+        dxchange.write_tiff_stack(data,name+'/data/d',overwrite=True)
+        #exit()
         if(il==0):
             u = np.zeros([nz, ne, ne], dtype='float32')
-            psi = data.copy()
+            psi = data.copy()*0
             lamd = np.zeros([ntheta, nz, n], dtype='float32')
             flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
         else:            
             u, psi, lamd, flow = interpdense(u,psi,lamd,flow)
-        
+
         # optical flow parameters
-        pars = [0.5,0, w[il], 4, 5, 1.1, 4]
+        pars = [0.5,1, w[il], 4, 5, 1.1, 4]
         with tc.SolverTomo(theta, ntheta, nz, ne, pnz, center/pow(2, binning), ngpus) as tslv:
             with dc.SolverDeform(ntheta, nz, n, ptheta) as dslv:
                 rho = 0.5
                 h0 = psi
                 for k in range(niter[il]):
                     # registration
+                   # print(np.linalg.norm(psi-data))
                     flow = dslv.registration_flow_batch(
                         psi, data, mmin, mmax, flow.copy(), pars, 20) 
+                   # Tpsi = dslv.apply_flow_gpu_batch(psi, flow)
+                   # print(np.linalg.norm(Tpsi-data))
+                       
                     # deformation subproblem
                     psi = dslv.cg_deform_gpu_batch(data, psi, flow, 4,
                                                 unpad(tslv.fwd_tomo_batch(u),ne,n)+lamd/rho, rho)
@@ -186,5 +192,5 @@ if __name__ == "__main__":
                     # Updates
                     rho = update_penalty(psi, h, h0, rho)
                     h0 = h
-                    pars[2] -= 4                                
+                    pars[2] -= 1                            
                     gc.collect()

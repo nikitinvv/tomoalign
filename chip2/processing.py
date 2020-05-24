@@ -29,9 +29,9 @@ def preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remov
     prj[prj <= 0] = 1  # check dark<data
     prj = tomopy.minus_log(prj)  # -logarithm
     if remove_rings:  # remove rings
-        prj = tomopy.remove_stripe_fw(
-             prj, level=7, wname='sym16', sigma=1, pad=True)
-        #prj = tomopy.remove_stripe_ti(prj,2)
+        #prj = tomopy.remove_stripe_fw(
+         #    prj, level=7, wname='sym16', sigma=1, pad=True)
+        prj = tomopy.remove_stripe_ti(prj,2)
     if downsapling > 0:  # binning
         prj = tomopy.downsample(prj, level=binning)
         prj = tomopy.downsample(prj, level=binning, axis=1)
@@ -56,6 +56,6 @@ if __name__ == "__main__":
         prj = preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remove_rings,
                             FF_drift_corr=flat_field_drift_corr, downsapling=binning)
         #dxchange.write_tiff_stack(prj,name+'/data'+str(binning),overwrite=True)
-        np.save(name+'_bin'+str(binning)+str(k),prj)        
+        np.save(name+'_ti_bin'+str(binning)+str(k),prj)        
         np.save(name+'_theta'+str(k),theta)  
             

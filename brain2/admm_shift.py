@@ -10,10 +10,12 @@ import matplotlib
 from timing import tic,toc
 import gc
 import scipy.ndimage as ndimage
+import cv2
 matplotlib.use('Agg')
 centers={
 '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_721prj_180deg_1s_170': 1211,
 '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167': 1224,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_4800prj_720deg_166': 1224,
 }
 ngpus = 4
 def myplot(u, psi, flow, binning):
@@ -102,47 +104,11 @@ def unpad(data,ne,n):
     return data[:,:,ne//2-n//2:ne//2+n//2]
 
 def interpdense(u,psi,lamd,flow):
-    [ntheta,nz,n]=psi.shape
-    #u
-    # fu=np.fft.fftshift(np.fft.fftn(np.fft.fftshift(u)))
-    # fue = np.zeros([2*nz,2*n,2*n],dtype='complex64')
-    # fue[nz//2:-nz//2,n//2:-n//2,n//2:-n//2]=fu
-    # u = np.fft.fftshift(np.fft.ifftn(np.fft.fftshift(fue))).real*8
-    # #
-    # [ntheta,nz,n]=psi.shape
-    
-    # fpsi=np.fft.fftshift(np.fft.fft2(np.fft.fftshift(psi)))
-    # fpsie = np.zeros([ntheta,2*nz,2*n],dtype='complex64')
-    # fpsie[:,nz//2:-nz//2,n//2:-n//2]=fpsi
-    # psi = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(fpsie))).real*4
-    # #
-    # flamd=np.fft.fftshift(np.fft.fft2(np.fft.fftshift(lamd)))
-    # flamde = np.zeros([ntheta,2*nz,2*n],dtype='complex64')
-    # flamde[:,nz//2:-nz//2,n//2:-n//2]=flamd
-    # lamd = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(flamde))).real*4
-    # #
-    # flownew = np.zeros([ntheta,2*nz,2*n,2],dtype='float32')    
-    # fflow=np.fft.fftshift(np.fft.fft2(np.fft.fftshift(flow[:,:,:,0])))
-    # fflowe = np.zeros([ntheta,2*nz,2*n],dtype='complex64')
-    # fflowe[:,nz//2:-nz//2,n//2:-n//2]=fflow
-    # flownew[:,:,:,0] = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(fflowe))).real*4
-
-    # fflow=np.fft.fftshift(np.fft.fft2(np.fft.fftshift(flow[:,:,:,1])))
-    # fflowe = np.zeros([ntheta,2*nz,2*n],dtype='complex64')
-    # fflowe[:,nz//2:-nz//2,n//2:-n//2]=fflow
-    # flownew[:,:,:,1] = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(fflowe))).real*4
-
-    unew = ndimage.zoom(u,2)
-    psinew = np.zeros([ntheta,2*nz,2*n],dtype='float32')    
-    lamdnew = np.zeros([ntheta,2*nz,2*n],dtype='float32')        
-    flownew = np.zeros([ntheta,2*nz,2*n,2],dtype='float32')    
-    for k in range(ntheta):
-        psinew[k] = ndimage.zoom(psi[k],2)
-        lamdnew[k] = ndimage.zoom(lamd[k],2)
-        flownew[k,:,:,0]=ndimage.zoom(flow[k,:,:,0],2,order=0)
-        flownew[k,:,:,1]=ndimage.zoom(flow[k,:,:,1],2,order=0)
-
-    return unew,psinew,lamdnew,flownew
+    u = ndimage.zoom(u,2,order=1)
+    psi = ndimage.zoom(psi,(1,2,2),order=1)
+    lamd = ndimage.zoom(lamd,(1,2,2),order=1)
+    flow = ndimage.zoom(flow,(1,2,2,1),order=1)/2    
+    return u,psi,lamd,flow
 
 if __name__ == "__main__":
 
@@ -150,7 +116,7 @@ if __name__ == "__main__":
     nth = np.int(sys.argv[2])
     name = sys.argv[3]   
     
-    w = [512,1024,64]
+    w = [512,1024,2048]
     niter = [48,24,13]
     binnings=[3,2,1]
     # ADMM solver
@@ -168,22 +134,22 @@ if __name__ == "__main__":
         data-=np.mean(data)
         mmin,mmax = find_min_max(data)
         # pad data    
-        ne = 3456//pow(2,binning)    
+        ne = 2560//pow(2,binning)    
         #ne=n
         center = centers[sys.argv[3]]+(ne//2-n//2)*pow(2,binning)        
         pnz = 8*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
-        ptheta = 60
+        ptheta = 20
 
         if(il==0):
             u = np.zeros([nz, ne, ne], dtype='float32')
-            psi = data.copy()
+            psi = data.copy()*0
             lamd = np.zeros([ntheta, nz, n], dtype='float32')
             flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
         else:            
             u, psi, lamd, flow = interpdense(u,psi,lamd,flow)
         
         # optical flow parameters
-        pars = [0.5,0, ne, 4, 1, 1.1, 4]
+        pars = [0.5,1, 2*n, 4, 1, 1.1, 4]
         with tc.SolverTomo(theta, ntheta, nz, ne, pnz, center/pow(2, binning), ngpus) as tslv:
             with dc.SolverDeform(ntheta, nz, n, ptheta) as dslv:
                 rho = 0.5
