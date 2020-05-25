@@ -134,7 +134,7 @@ if __name__ == "__main__":
         data-=np.mean(data)
         mmin,mmax = find_min_max(data)
         # pad data    
-        ne = 2560//pow(2,binning)    
+        ne = 3672//pow(2,binning)    
         #ne=n
         center = centers[sys.argv[3]]+(ne//2-n//2)*pow(2,binning)        
         pnz = 8*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography

@@ -10,7 +10,7 @@ matplotlib.rcParams['text.latex.preamble'] = [r'\boldmath']
 #matplotlib.rcParams['text.latex.preamble'] = [r'\bold']
 #matplotlib.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}"]
 #plt.rc('font', family='serif',fontweight='bold')
-plt.rcParams['axes.labelsize'] = 20
+plt.rcParams['axes.labelsize'] = 27
 plt.rcParams['axes.titlesize'] = 16
 
 
@@ -22,25 +22,25 @@ f = np.zeros(ntheta)
 f[ntheta//4:ntheta]=pow(np.sin(np.linspace(0,np.pi/2,ntheta*3//4)),1/3)
 #f[ntheta//2:ntheta]=0.8+np.arange(0,ntheta/2)/ntheta/4
 plt.figure(figsize=(10,3))
-plt.plot(f,linewidth=3)
+plt.plot(f,linewidth=4)
 plt.ylabel(r'\textbf{deformation}')
 plt.xlabel(r'\textbf{proj id (angle)}')
-plt.ylim([0,1])
+plt.ylim([0,1.05])
 plt.xlim([0,ntheta+1])
-plt.xticks(np.arange(0,385,96),[r'\textbf{0(0)}',r'\textbf{96$(\pi)$}',r'\textbf{192$(2\pi)$}',r'\textbf{288$(3\pi)$}',r'\textbf{384$(4\pi)$}'],fontsize=15)
-plt.yticks(np.arange(0,1.1,0.2),[r'\textbf{0}',r'\textbf{0.2}',r'\textbf{0.4}',r'\textbf{0.6}',r'\textbf{0.8}',r'\textbf{1.0}'],fontsize=15)
-plt.text(124,0.43,r'\textbf{fast deformation}',fontsize=18)
-plt.text(247,0.81,r'\textbf{slow deformation}',fontsize=18)
-plt.text(2,0.03,r'\textbf{no deformation}',fontsize=18)
+plt.xticks(np.arange(0,385,96),[r'\textbf{0(0)}',r'\textbf{96$(\pi)$}',r'\textbf{192$(2\pi)$}',r'\textbf{288$(3\pi)$}',r'\textbf{384$(4\pi)$}'],fontsize=24)
+plt.yticks(np.arange(0,1.2,0.2),[r'\textbf{0}',r'\textbf{0.2}',r'\textbf{0.4}',r'\textbf{0.6}',r'\textbf{0.8}',r'\textbf{1.0}'],fontsize=24)
+plt.text(110,0.2,r'\textbf{fast deformation}',fontsize=27)
+plt.text(205,0.65,r'\textbf{slow deformation}',fontsize=27)
+#plt.text(2,0.03,r'\textbf{no deformation}',fontsize=25)
 
-plt.plot(104,f[104],'ro',markersize=10)
-plt.plot(104+96,f[104+96],'go',markersize=10)
-plt.plot(104+96*2,f[104+96*2],'bo',markersize=10)
+plt.plot(104,f[104],'ro',markersize=15)
+plt.plot(104+96,f[104+96],'go',markersize=15)
+plt.plot(104+96*2,f[104+96*2],'bo',markersize=15)
 
-plt.yticks(fontsize=14)
+plt.yticks(fontsize=25)
 plt.savefig('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/plt.png',bbox_inches = 'tight')  
 plt.show()
-
+#exit()
 for k in range(104,384,96):
     plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/dif'+str(k)+'.png',datad[k]-data[k],vmin=-20,vmax=20,cmap='gray')
     plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/proj'+str(k)+'.png',data[k],vmin=0,vmax=40,cmap='gray')
@@ -52,16 +52,20 @@ plt.figure(figsize=(1,8))
 img = plt.imshow(np.array([[-1,1]]), cmap="gray")
 plt.gca().set_visible(False)
 #cax = plt.axes([0.1, 0.3, 0.2, 0.2])
+
+
 cb=plt.colorbar(orientation="vertical",ticks=[-1, 0, 1])
-cb.ax.tick_params(labelsize=18)
+cb.ax.tick_params(labelsize=36)
 cb.ax.set_yticklabels([r'\textbf{-20}', r'\textbf{0}', r'\textbf{20}']) 
 plt.savefig("/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/colorbar.png",bbox_inches = 'tight')
 plt.figure(figsize=(1,8))
 img = plt.imshow(np.array([[-1,1]]), cmap="gray")
 plt.gca().set_visible(False)
 #cax = plt.axes([0.1, 0.3, 0.2, 0.2])
+
+
 cb=plt.colorbar(orientation="vertical",ticks=[-1, 0, 1])
-cb.ax.tick_params(labelsize=18)
+cb.ax.tick_params(labelsize=36)
 cb.ax.set_yticklabels([r'\textbf{0}', r'\textbf{20}', r'\textbf{40}']) 
 plt.savefig("/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/colorbarproj.png",bbox_inches = 'tight')
 
@@ -69,8 +73,10 @@ plt.figure(figsize=(8,1))
 img = plt.imshow(np.array([[0,1]]), cmap="gray")
 plt.gca().set_visible(False)
 #cax = plt.axes([0.1, 0.3, 0.2, 0.2])
+
+
 cb=plt.colorbar(orientation="horizontal",ticks=[0, 0.5, 1])
-cb.ax.tick_params(labelsize=18)
+cb.ax.tick_params(labelsize=36)
 cb.ax.set_yticklabels([r'\textbf{0}', r'\textbf{0.5}', r'\textbf{1}']) 
 plt.savefig("/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/hcolorbarobj.png",bbox_inches = 'tight')
 
@@ -78,8 +84,10 @@ plt.figure(figsize=(8,1))
 img = plt.imshow(np.array([[0,40]]), cmap="gray")
 plt.gca().set_visible(False)
 #cax = plt.axes([0.1, 0.3, 0.2, 0.2])
+
+
 cb=plt.colorbar(orientation="horizontal",ticks=[0, 20, 40])
-cb.ax.tick_params(labelsize=18)
+cb.ax.tick_params(labelsize=36)
 cb.ax.set_yticklabels([r'\textbf{0}', r'\textbf{20}', r'\textbf{40}']) 
 plt.savefig("/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/hcolorbarproj.png",bbox_inches = 'tight')
 
@@ -87,9 +95,11 @@ plt.figure(figsize=(8,1))
 img = plt.imshow(np.array([[-20,20]]), cmap="gray")
 plt.gca().set_visible(False)
 #cax = plt.axes([0.1, 0.3, 0.2, 0.2])
+
+
 cb=plt.colorbar(orientation="horizontal",ticks=[-20, 0, 20])
-cb.ax.tick_params(labelsize=18)
-cb.ax.set_yticklabels([r'\textbf{-20}', r'\textbf{0}', r'\textbf{20}']) 
+cb.ax.tick_params(labelsize=36)
+cb.ax.set_xticklabels([r'\textbf{-20}', r'\textbf{0}', r'\textbf{20}']) 
 plt.savefig("/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/hcolorbardifproj.png",bbox_inches = 'tight')
 
 u = dxchange.read_tiff_stack('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/fw__384/rect236/r_00000.tiff',ind=np.arange(0,256))
