@@ -75,11 +75,11 @@ def myplot(u, psi, flow, binning):
 
     plt.subplot(3, 4, 12)
     plt.imshow(u[:, :, n//2], cmap='gray')
-    if not os.path.exists('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/'+'/flowfw_'+'_'+str(ntheta)):
+    if not os.path.exists('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/'+'/noiseflowfw_'+'_'+str(ntheta)):
         os.makedirs(
-            '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/'+'/flowfw_'+'_'+str(ntheta))
+            '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/'+'/noiseflowfw_'+'_'+str(ntheta))
     plt.savefig(
-        '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/'+'/flowfw_'+'_'+str(ntheta)+'/'+str(k))
+        '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/'+'/noiseflowfw_'+'_'+str(ntheta)+'/'+str(k))
     plt.close()
 
 
@@ -187,71 +187,50 @@ print(theta)
 binning=0
 ne=n
 # with tc.SolverTomo(theta, ntheta, nz, n, nz//4, n/2, 4) as tslv:
-#     ddata=tslv.fwd_tomo_batch(f)
+#     ddata=tslvfwd_tomo_batch(f)
+alpha = 3e-3
 with tc.SolverTomo(theta, ntheta, nz, ne, 64, n/2+(ne-n)/2, 4) as tslv:
     with dc.SolverDeform(ntheta, nz, n, 16) as dslv:
-        # dxchange.write_tiff(ddata,'/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/data',overwrite=True)
-        # data = deform_data(ddata)
-        # dxchange.write_tiff(data,'/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/datad',overwrite=True)
-        data=dxchange.read_tiff('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/datad.tiff').copy()
-        #exit()
-        
-        #data-=np.mean(data)
+        data=dxchange.read_tiff('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/datadnoise.tiff').copy()
         u = np.zeros([nz, ne, ne], dtype='float32')
         ucg = tslv.cg_tomo_batch(pad(data,ne,n), u, 64) 
-        dxchange.write_tiff(ucg[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],'/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/ucg',overwrite=True)
+        dxchange.write_tiff(ucg[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],'/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/ucgnoise',overwrite=True)
         #exit()
         #optflow
         mmin,mmax = find_min_max(data)
         u = np.zeros([nz, ne, ne], dtype='float32')
         psi = data.copy()
+        psi1 = np.zeros([3,nz, n, n], dtype='float32')
         lamd = np.zeros([ntheta, nz, n], dtype='float32')
+        lamd1 = np.zeros([3,nz, n, n], dtype='float32')
+        
         flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
         
         # optical flow parameters
-        pars = [0.5,1, 256, 8, 5, 1.1, 4]
-        rho = 0.5
-        h0 = psi
+        rho1 = 0.5
+        h01 = psi1
         for k in range(256):
-            # registration
-            # print(np.linalg.norm(psi-data))
-            flow = dslv.registration_flow_batch(
-                psi, data, mmin, mmax, flow.copy(), pars, 16) 
-            # Tpsi = dslv.apply_flow_gpu_batch(psi, flow)
-            # print(np.linalg.norm(Tpsi-data))
-                
-            # deformation subproblem
-            psi = dslv.cg_deform_gpu_batch(data, psi, flow, 4,
-                                        unpad(tslv.fwd_tomo_batch(u),ne,n)+lamd/rho, rho)
+            psi = data
+            psi1 = tslv.solve_reg(u,lamd1,rho1,alpha)    
             # tomo subproblem
-           # print(pad(psi-lamd/rho,ne,n).shape)
-            #print(u.shape)
-            u = tslv.cg_tomo_batch(pad(psi-lamd/rho,ne,n), u, 4)                    
+            u = tslv.cg_tomo_reg_batch(pad(psi,ne,n), u, 4, rho1, psi1-lamd1/rho1)                    
             h = unpad(tslv.fwd_tomo_batch(u),ne,n)
+            h1 = tslv.fwd_reg(u)
+            
             # lambda update
-            lamd = lamd+rho*(h-psi)
+            lamd1 = lamd1+rho1*(h1-psi1)
 
             # checking intermediate results
-            myplot(u, psi, flow, binning)
             if(np.mod(k,4)==0):  # check Lagrangian
-                Tpsi = dslv.apply_flow_gpu_batch(psi, flow)
                 lagr = np.zeros(4)
-                lagr[0] = 0.5*np.linalg.norm(Tpsi-data)**2
-                lagr[1] = np.sum(np.real(np.conj(lamd)*(h-psi)))
-                lagr[2] = rho/2*np.linalg.norm(h-psi)**2
+                lagr[2] = 1/2*np.linalg.norm(h-psi)**2
                 lagr[3] = np.sum(lagr[0:3])
-                print("%d %d %.2e %.2f %.4e %.4e %.4e %.4e " % (k, pars[2], np.linalg.norm(
-                    flow), rho, *lagr))
+                print("%d %.2e %.2f %.4e %.4e %.4e %.4e " % (k,  np.linalg.norm(
+                    flow), rho1, *lagr))
                 sys.stdout.flush()           
                 dxchange.write_tiff_stack(
-                    u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/'+'/fw_'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
-                dxchange.write_tiff_stack(
-                psi.real, '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/'+'/fw_'+'_'+str(ntheta)+'/psi'+str(k)+'/r', overwrite=True)
-                np.save('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/'+'/fw_'+'_'+str(ntheta)+'/flownpy/'+str(k),flow)
-
+                    u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn/'+'/noisecgregfw_'+'_'+str(ntheta)+str(alpha)+'/rect'+str(k)+'/r', overwrite=True)                
             # Updates
-            rho = update_penalty(psi, h, h0, rho)
-            h0 = h
-            if(pars[2]>28):
-                pars[2] -= 1                           
+            rho1 = update_penalty(psi1, h1, h01, rho1)
+            h01 = h1
             
