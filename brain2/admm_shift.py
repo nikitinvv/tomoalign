@@ -134,7 +134,7 @@ if __name__ == "__main__":
         data-=np.mean(data)
         mmin,mmax = find_min_max(data)
         # pad data    
-        ne = 3672//pow(2,binning)    
+        ne = 3584//pow(2,binning)    
         #ne=n
         center = centers[sys.argv[3]]+(ne//2-n//2)*pow(2,binning)        
         pnz = 8*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
@@ -183,6 +183,9 @@ if __name__ == "__main__":
                             u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  name+'/shiftfw_'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
                         dxchange.write_tiff_stack(
                         psi.real, name+'/shiftfw_'+'_'+str(ntheta)+'/psi'+str(k)+'/r', overwrite=True)
+                        if not os.path.exists(name+'/shiftfw_'+'_'+str(ntheta)+'/flownpy'):
+                          os.makedirs(name+'/shiftfw_'+'_'+str(ntheta)+'/flownpy')
+                        np.save(name+'/shiftfw_'+'_'+str(ntheta)+'/flownpy/'+str(k),flow)
 
                     # Updates
                     rho = update_penalty(psi, h, h0, rho)

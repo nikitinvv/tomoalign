@@ -117,7 +117,7 @@ if __name__ == "__main__":
     name = sys.argv[3]   
     
     w = [256,128,64]
-    niter = [48,24,13]
+    niter = [48*2,24*2,13*2]
     #niter=[2,2,2]
     binnings=[3,2,1]
     # ADMM solver
@@ -134,7 +134,7 @@ if __name__ == "__main__":
         data-=np.mean(data)
         mmin,mmax = find_min_max(data)
         # pad data    
-        ne = 3672//pow(2,binning)    
+        ne = 3584//pow(2,binning)    
         #ne=n
         center = centers[sys.argv[3]]+(ne//2-n//2)*pow(2,binning)        
         pnz = 8*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
@@ -188,9 +188,12 @@ if __name__ == "__main__":
                             u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  name+'/fw_'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
                         dxchange.write_tiff_stack(
                         psi.real, name+'/fw_'+'_'+str(ntheta)+'/psi'+str(k)+'/r', overwrite=True)
+                        if not os.path.exists(name+'/fw_'+'_'+str(ntheta)+'/flownpy'):
+                          os.makedirs(name+'/fw_'+'_'+str(ntheta)+'/flownpy')
+                        np.save(name+'/fw_'+'_'+str(ntheta)+'/flownpy/'+str(k),flow)
 
                     # Updates
                     rho = update_penalty(psi, h, h0, rho)
                     h0 = h
-                    pars[2] -= 1                            
+                    pars[2] -= 2                        
                     gc.collect()
