@@ -15,6 +15,11 @@ centers={
 '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_721prj_180deg_1s_170': 1211,
 '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167': 1224,
 '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_4800prj_720deg_166': 1224,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brainJune/brain_50nmZP_abs_interalced_1s_113' : 1186,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brainJune/brain_50nmZP_abs_interalced_1s_114' : 1186,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brainJune/brain_50nmZP_Zernike_interalced_2000prj_1s_115' : 1186,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brainJune/brain_50nmZP_Zernike_interalced_2000prj_1s_116' : 1186,
+
 }
 ngpus = 4
 
@@ -104,10 +109,10 @@ def unpad(data,ne,n):
     return data[:,:,ne//2-n//2:ne//2+n//2]
 
 def interpdense(u,psi,lamd,flow):
-    u = ndimage.zoom(u,2,order=3)
-    psi = ndimage.zoom(psi,(1,2,2),order=3)
-    lamd = ndimage.zoom(lamd,(1,2,2),order=3)
-    flow = ndimage.zoom(flow,(1,2,2,1),order=3)/2    
+    u = ndimage.zoom(u,2,order=1)
+    psi = ndimage.zoom(psi,(1,2,2),order=1)
+    lamd = ndimage.zoom(lamd,(1,2,2),order=1)
+    flow = ndimage.zoom(flow,(1,2,2,1),order=1)/2    
     return u,psi,lamd,flow
 
 if __name__ == "__main__":
@@ -117,7 +122,7 @@ if __name__ == "__main__":
     name = sys.argv[3]   
     
     w = [256,128,64]
-    niter = [48*2,24*2,12*2+1]
+    niter = [48*2,24*2,13*2]
     #niter=[2,2,2]
     binnings=[3,2,1]
     # ADMM solver

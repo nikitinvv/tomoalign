@@ -54,11 +54,11 @@ def myplot(u, psi, flow, binning):
 
     plt.subplot(3, 4, 12)
     plt.imshow(u[:, :, n//2], cmap='gray')
-    if not os.path.exists(name+'/flowfw_'+'_'+str(ntheta)):
+    if not os.path.exists(name+'/flowfw_resolution1'+'_'+str(ntheta)):
         os.makedirs(
-            name+'/flowfw_'+'_'+str(ntheta))
+            name+'/flowfw_resolution1'+'_'+str(ntheta))
     plt.savefig(
-        name+'/flowfw_'+'_'+str(ntheta)+'/'+str(k))
+        name+'/flowfw_resolution1'+'_'+str(ntheta)+'/'+str(k))
     plt.close()
 
 
@@ -104,10 +104,10 @@ def unpad(data,ne,n):
     return data[:,:,ne//2-n//2:ne//2+n//2]
 
 def interpdense(u,psi,lamd,flow):
-    u = ndimage.zoom(u,2,order=3)
-    psi = ndimage.zoom(psi,(1,2,2),order=3)
-    lamd = ndimage.zoom(lamd,(1,2,2),order=3)
-    flow = ndimage.zoom(flow,(1,2,2,1),order=3)/2    
+    u = ndimage.zoom(u,2,order=1)
+    psi = ndimage.zoom(psi,(1,2,2),order=1)
+    lamd = ndimage.zoom(lamd,(1,2,2),order=1)
+    flow = ndimage.zoom(flow,(1,2,2,1),order=1)/2    
     return u,psi,lamd,flow
 
 if __name__ == "__main__":
@@ -128,19 +128,24 @@ if __name__ == "__main__":
         for k in range(ndsets):
             data[k*nth:(k+1)*nth] = np.load(name+'_bin'+str(binning)+str(k)+'.npy').astype('float32')                                   
             theta[k*nth:(k+1)*nth] = np.load(name+'_theta'+str(k)+'.npy').astype('float32')
-        [ntheta, nz, n] = data.shape  # object size n x,y
         
         data[np.isnan(data)]=0            
         data-=np.mean(data)
         mmin,mmax = find_min_max(data)
+        
+        data = np.array(data[0::2],order='C')
+        theta = np.array(theta[0::2],order='C')        
+        
         # pad data    
         ne = 3584//pow(2,binning)    
         #ne=n
+        [ntheta, nz, n] = data.shape  # object size n x,y
+        
         center = centers[sys.argv[3]]+(ne//2-n//2)*pow(2,binning)        
         pnz = 8*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
-        ptheta = 20
-        dxchange.write_tiff_stack(data,name+'/data/d',overwrite=True)
-        #exit()
+        ptheta = 20        
+        
+        
         if(il==0):
             u = np.zeros([nz, ne, ne], dtype='float32')
             psi = data.copy()*0
@@ -185,12 +190,12 @@ if __name__ == "__main__":
                             flow), rho, *lagr))
                         sys.stdout.flush()           
                         dxchange.write_tiff_stack(
-                            u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  name+'/fw_'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
+                            u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  name+'/fw_resolution1'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
                         dxchange.write_tiff_stack(
-                        psi.real, name+'/fw_'+'_'+str(ntheta)+'/psi'+str(k)+'/r', overwrite=True)
-                        if not os.path.exists(name+'/fw_'+'_'+str(ntheta)+'/flownpy'):
-                          os.makedirs(name+'/fw_'+'_'+str(ntheta)+'/flownpy')
-                        np.save(name+'/fw_'+'_'+str(ntheta)+'/flownpy/'+str(k),flow)
+                        psi.real, name+'/fw_resolution1'+'_'+str(ntheta)+'/psi'+str(k)+'/r', overwrite=True)
+                        if not os.path.exists(name+'/fw_resolution1'+'_'+str(ntheta)+'/flownpy'):
+                          os.makedirs(name+'/fw_resolution1'+'_'+str(ntheta)+'/flownpy')
+                        np.save(name+'/fw_resolution1'+'_'+str(ntheta)+'/flownpy/'+str(k),flow)
 
                     # Updates
                     rho = update_penalty(psi, h, h0, rho)

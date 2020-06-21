@@ -104,10 +104,10 @@ def unpad(data,ne,n):
     return data[:,:,ne//2-n//2:ne//2+n//2]
 
 def interpdense(u,psi,lamd,flow):
-    u = ndimage.zoom(u,2,order=3)
-    psi = ndimage.zoom(psi,(1,2,2),order=3)
-    lamd = ndimage.zoom(lamd,(1,2,2),order=3)
-    flow = ndimage.zoom(flow,(1,2,2,1),order=3)/2    
+    u = ndimage.zoom(u,2,order=1)
+    psi = ndimage.zoom(psi,(1,2,2),order=1)
+    lamd = ndimage.zoom(lamd,(1,2,2),order=1)
+    flow = ndimage.zoom(flow,(1,2,2,1),order=1)/2    
     return u,psi,lamd,flow
 
 if __name__ == "__main__":
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     name = sys.argv[3]   
     
     w = [256,128,64]
-    niter = [48*2,24*2,12*2+1]
+    niter = [1,1,1]
     #niter=[2,2,2]
     binnings=[3,2,1]
     # ADMM solver
@@ -134,20 +134,20 @@ if __name__ == "__main__":
         data-=np.mean(data)
         mmin,mmax = find_min_max(data)
         # pad data    
-        ne = 3584//pow(2,binning)    
+        ne = (3584)//pow(2,binning)    
         #ne=n
         center = centers[sys.argv[3]]+(ne//2-n//2)*pow(2,binning)        
         pnz = 8*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
-        ptheta = 20
+        ptheta = 40
         dxchange.write_tiff_stack(data,name+'/data/d',overwrite=True)
         #exit()
-        if(il==0):
-            u = np.zeros([nz, ne, ne], dtype='float32')
-            psi = data.copy()*0
-            lamd = np.zeros([ntheta, nz, n], dtype='float32')
-            flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
-        else:            
-            u, psi, lamd, flow = interpdense(u,psi,lamd,flow)
+        #if(il==0):
+        u = np.zeros([nz, ne, ne], dtype='float32')
+        psi = data.copy()*0
+        lamd = np.zeros([ntheta, nz, n], dtype='float32')
+        flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
+        #else:            
+         #   u, psi, lamd, flow = interpdense(u,psi,lamd,flow)
 
         # optical flow parameters
         pars = [0.5,1, w[il], 4, 5, 1.1, 4]
@@ -158,16 +158,23 @@ if __name__ == "__main__":
                 for k in range(niter[il]):
                     # registration
                    # print(np.linalg.norm(psi-data))
+                    tic()
                     flow = dslv.registration_flow_batch(
-                        psi, data, mmin, mmax, flow.copy(), pars, 20) 
+                        psi, data, mmin, mmax, flow.copy(), pars, 40) 
+                    print(toc())
                    # Tpsi = dslv.apply_flow_gpu_batch(psi, flow)
                    # print(np.linalg.norm(Tpsi-data))
                        
                     # deformation subproblem
+                    tic()
                     psi = dslv.cg_deform_gpu_batch(data, psi, flow, 4,
                                                 unpad(tslv.fwd_tomo_batch(u),ne,n)+lamd/rho, rho)
+                    print(toc())
+
                     # tomo subproblem
+                    tic()
                     u = tslv.cg_tomo_batch(pad(psi-lamd/rho,ne,n), u, 4)                    
+                    print(toc())
                     h = unpad(tslv.fwd_tomo_batch(u),ne,n)
                     # lambda update
                     lamd = lamd+rho*(h-psi)

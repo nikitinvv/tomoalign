@@ -171,6 +171,16 @@ def cyl(r,c,h,rx,ry,rz,n):
     
     return f
 
+def prealign(data):
+    mmin,mmax = find_min_max(data)
+    pars = [0.5,1, 2*n, 4, 5, 1.1, 4]
+    res=data.copy()
+    for k in range(1,ntheta//irot):
+       with dc.SolverDeform(irot, nz, n, 16) as dslv:
+           flow = dslv.registration_flow_batch(
+                        data[k*irot:(k+1)*irot], data[0*irot:(0+1)*irot], mmin[:irot], mmax[:irot], None, pars, 16) 
+           res[k*irot:(k+1)*irot] = dslv.apply_flow_gpu_batch(data[k*irot:(k+1)*irot], flow)
+    return res
 f = cyl(0.01,[0.1,0.2],256,30,45,30,256)
 f = f+1*cyl(0.01,[-0.1,-0.2],256,-30,-15,30,256)
 f = f+1*cyl(0.01,[-0.3,-0.3],256,-30,-95,-40,256)
@@ -209,25 +219,27 @@ binning=0
 # np.save('r',r)#
 alpha=1e-3
 r = np.load('r.npy')
-for irot in [96]: 
+for irot in [192]: 
     print('irot',irot)
     theta = np.array(genang(ntheta,irot)).astype('float32')/360*np.pi*2
-    for idef in [0]:
+    for idef in [12]:
         print('idef',idef)
         data0 = unpad(deform_data_batch(f,theta,r*idef),ne,n)
-        with tc.SolverTomo(theta, ntheta, nz, ne, 256, n/2+(ne-n)/2, 1) as tslv:
+        with tc.SolverTomo(theta, ntheta, nz, ne, 64, n/2+(ne-n)/2, 4) as tslv:
             with dc.SolverDeform(ntheta, nz, n, 16) as dslv:
                 for inoise in range(-1,0):
                     print('inoise',inoise)
-                    data = data0#np.random.poisson(data0*64/pow(2,inoise)).astype('float32')*pow(2,inoise)/64
-                    dxchange.write_tiff(data,'/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/datad/data_'+str(idef)+'_'+str(inoise)+'_'+str(irot),overwrite=True)
+                    data = data0.copy()#np.random.poisson(data0*64/pow(2,inoise)).astype('float32')*pow(2,inoise)/64
+                    dxchange.write_tiff(data,'/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/datad/0data_'+str(idef)+'_'+str(inoise)+'_'+str(irot),overwrite=True)
+                    #data=dxchange.read_tiff('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/datad/0data_'+str(idef)+'_'+str(inoise)+'_'+str(irot)+'.tiff')
                     #data-=np.mean(data)
-                    exit()
+                    # exit()
 
                     print('cg')                                        
                     u = np.zeros([nz, ne, ne], dtype='float32')
-                    ucg = tslv.cg_tomo_batch(pad(data,ne,n), u, 64) 
-                    dxchange.write_tiff(ucg[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],'/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/ucg'+str(idef)+'_'+str(inoise)+'_'+str(irot),overwrite=True)
+                    data1=prealign(data)
+                    ucg = tslv.cg_tomo_batch(pad(data1,ne,n), u, 64) 
+                    dxchange.write_tiff(ucg[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],'/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/0ucg'+str(idef)+'_'+str(inoise)+'_'+str(irot),overwrite=True)
                    # continue
                     
 
@@ -263,12 +275,12 @@ for irot in [96]:
                                 flow), rho, *lagr))
                             sys.stdout.flush()           
                             dxchange.write_tiff_stack(
-                                u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'/rect'+str(k)+'/r', overwrite=True)
+                                u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/0fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'/rect'+str(k)+'/r', overwrite=True)
                             dxchange.write_tiff_stack(
-                            psi.real, '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'/psi'+str(k)+'/r', overwrite=True)
-                            if not os.path.exists('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'/flownpy'):
-                                    os.makedirs('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'/flownpy')
-                            np.save('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'/flownpy/'+str(k),flow)
+                            psi.real, '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/0fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'/psi'+str(k)+'/r', overwrite=True)
+                            if not os.path.exists('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/0fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'/flownpy'):
+                                    os.makedirs('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/0fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'/flownpy')
+                            np.save('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/0fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'/flownpy/'+str(k),flow)
 
                         # Updates
                         rho = update_penalty(psi, h, h0, rho)
@@ -277,103 +289,103 @@ for irot in [96]:
                             pars[2] -= 1        
 
 
-                    print('of reg')                    
-                    u = np.zeros([nz, ne, ne], dtype='float32')
-                    psi = data.copy()
-                    psi1 = np.zeros([3,nz, ne, ne], dtype='float32')
-                    lamd = np.zeros([ntheta, nz, n], dtype='float32')
-                    lamd1 = np.zeros([3,nz, ne, ne], dtype='float32')                    
-                    flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
+                    # print('of reg')                    
+                    # u = np.zeros([nz, ne, ne], dtype='float32')
+                    # psi = data.copy()
+                    # psi1 = np.zeros([3,nz, ne, ne], dtype='float32')
+                    # lamd = np.zeros([ntheta, nz, n], dtype='float32')
+                    # lamd1 = np.zeros([3,nz, ne, ne], dtype='float32')                    
+                    # flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
                     
-                    # optical flow parameters
-                    pars = [0.5,1, 256, 8, 5, 1.1, 4]
-                    rho = 0.5
-                    rho1 = 0.5
-                    h0 = psi
-                    h01 = psi1
-                    for k in range(256):
-                        # registration
-                        flow = dslv.registration_flow_batch(
-                            psi, data, mmin, mmax, flow.copy(), pars, 16) 
+                    # # optical flow parameters
+                    # pars = [0.5,1, 256, 8, 5, 1.1, 4]
+                    # rho = 0.5
+                    # rho1 = 0.5
+                    # h0 = psi
+                    # h01 = psi1
+                    # for k in range(256):
+                    #     # registration
+                    #     flow = dslv.registration_flow_batch(
+                    #         psi, data, mmin, mmax, flow.copy(), pars, 16) 
                             
-                        # deformation subproblem
-                        psi = dslv.cg_deform_gpu_batch(data, psi, flow, 4,
-                                                    unpad(tslv.fwd_tomo_batch(u),ne,n)+lamd/rho, rho)
+                    #     # deformation subproblem
+                    #     psi = dslv.cg_deform_gpu_batch(data, psi, flow, 4,
+                    #                                 unpad(tslv.fwd_tomo_batch(u),ne,n)+lamd/rho, rho)
 
-                        psi1 = tslv.solve_reg(u,lamd1,rho1,alpha)    
-                        # tomo subproblem
-                        u = tslv.cg_tomo_reg_batch(pad(psi-lamd/rho,ne,n), u, 4, rho1/rho, psi1-lamd1/rho1)                    
-                        h = unpad(tslv.fwd_tomo_batch(u),ne,n)
-                        h1 = tslv.fwd_reg(u)
+                    #     psi1 = tslv.solve_reg(u,lamd1,rho1,alpha)    
+                    #     # tomo subproblem
+                    #     u = tslv.cg_tomo_reg_batch(pad(psi-lamd/rho,ne,n), u, 4, rho1/rho, psi1-lamd1/rho1)                    
+                    #     h = unpad(tslv.fwd_tomo_batch(u),ne,n)
+                    #     h1 = tslv.fwd_reg(u)
                         
-                        # lambda update
-                        lamd = lamd+rho*(h-psi)
-                        lamd1 = lamd1+rho1*(h1-psi1)
+                    #     # lambda update
+                    #     lamd = lamd+rho*(h-psi)
+                    #     lamd1 = lamd1+rho1*(h1-psi1)
 
-                        myplot(u, psi, flow, binning, alpha)
-                        if(np.mod(k,4)==0):  # check Lagrangian
-                            Tpsi = dslv.apply_flow_gpu_batch(psi, flow)
-                            lagr = np.zeros(4)
-                            lagr[0] = 0.5*np.linalg.norm(Tpsi-data)**2
-                            lagr[1] = np.sum(np.real(np.conj(lamd)*(h-psi)))
-                            lagr[2] = rho/2*np.linalg.norm(h-psi)**2
-                            lagr[3] = np.sum(lagr[0:3])
-                            print("%d %d %.2e %.2f %.4e %.4e %.4e %.4e " % (k, pars[2], np.linalg.norm(
-                                flow), rho, *lagr))
-                            sys.stdout.flush()           
-                            dxchange.write_tiff_stack(
-                                u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'_'+str(alpha)+'/rect'+str(k)+'/r', overwrite=True)
-                            dxchange.write_tiff_stack(
-                            psi.real, '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'_'+str(alpha)+'/psi'+str(k)+'/r', overwrite=True)
-                            if not os.path.exists('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'_'+str(alpha)+'/flownpy'):
-                                    os.makedirs('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'_'+str(alpha)+'/flownpy')
-                            np.save('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'_'+str(alpha)+'/flownpy/'+str(k),flow)
+                    #     myplot(u, psi, flow, binning, alpha)
+                    #     if(np.mod(k,4)==0):  # check Lagrangian
+                    #         Tpsi = dslv.apply_flow_gpu_batch(psi, flow)
+                    #         lagr = np.zeros(4)
+                    #         lagr[0] = 0.5*np.linalg.norm(Tpsi-data)**2
+                    #         lagr[1] = np.sum(np.real(np.conj(lamd)*(h-psi)))
+                    #         lagr[2] = rho/2*np.linalg.norm(h-psi)**2
+                    #         lagr[3] = np.sum(lagr[0:3])
+                    #         print("%d %d %.2e %.2f %.4e %.4e %.4e %.4e " % (k, pars[2], np.linalg.norm(
+                    #             flow), rho, *lagr))
+                    #         sys.stdout.flush()           
+                    #         dxchange.write_tiff_stack(
+                    #             u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/0fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'_'+str(alpha)+'/rect'+str(k)+'/r', overwrite=True)
+                    #         dxchange.write_tiff_stack(
+                    #         psi.real, '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/0fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'_'+str(alpha)+'/psi'+str(k)+'/r', overwrite=True)
+                    #         if not os.path.exists('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/0fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'_'+str(alpha)+'/flownpy'):
+                    #                 os.makedirs('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/0fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'_'+str(alpha)+'/flownpy')
+                    #         np.save('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/0fw_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'_'+str(alpha)+'/flownpy/'+str(k),flow)
 
 
-                        # Updates
-                        rho = update_penalty(psi, h, h0, rho)
-                        rho1 = update_penalty(psi1, h1, h01, rho1)
-                        h0 = h
-                        h01 = h1
-                        if(pars[2]>28):
-                            pars[2] -= 1                           
+                    #     # Updates
+                    #     rho = update_penalty(psi, h, h0, rho)
+                    #     rho1 = update_penalty(psi1, h1, h01, rho1)
+                    #     h0 = h
+                    #     h01 = h1
+                    #     if(pars[2]>28):
+                    #         pars[2] -= 1                           
                         
 
                     
-                    print('cg reg')
-                    u = np.zeros([nz, ne, ne], dtype='float32')
-                    psi = data.copy()
-                    psi1 = np.zeros([3,nz, ne, ne], dtype='float32')
-                    lamd = np.zeros([ntheta, nz, n], dtype='float32')
-                    lamd1 = np.zeros([3,nz, ne, ne], dtype='float32')
+                    # print('cg reg')
+                    # u = np.zeros([nz, ne, ne], dtype='float32')
+                    # psi = data.copy()
+                    # psi1 = np.zeros([3,nz, ne, ne], dtype='float32')
+                    # lamd = np.zeros([ntheta, nz, n], dtype='float32')
+                    # lamd1 = np.zeros([3,nz, ne, ne], dtype='float32')
                     
-                    flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
+                    # flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
                     
-                    # optical flow parameters
-                    rho1 = 0.5
-                    h01 = psi1
-                    for k in range(256):
-                        psi = data
-                        psi1 = tslv.solve_reg(u,lamd1,rho1,alpha)    
-                        # tomo subproblem
-                        u = tslv.cg_tomo_reg_batch(pad(psi,ne,n), u, 4, rho1, psi1-lamd1/rho1)                    
-                        h = unpad(tslv.fwd_tomo_batch(u),ne,n)
-                        h1 = tslv.fwd_reg(u)
+                    # # optical flow parameters
+                    # rho1 = 0.5
+                    # h01 = psi1
+                    # for k in range(256):
+                    #     psi = data
+                    #     psi1 = tslv.solve_reg(u,lamd1,rho1,alpha)    
+                    #     # tomo subproblem
+                    #     u = tslv.cg_tomo_reg_batch(pad(psi,ne,n), u, 4, rho1, psi1-lamd1/rho1)                    
+                    #     h = unpad(tslv.fwd_tomo_batch(u),ne,n)
+                    #     h1 = tslv.fwd_reg(u)
                         
-                        # lambda update
-                        lamd1 = lamd1+rho1*(h1-psi1)
+                    #     # lambda update
+                    #     lamd1 = lamd1+rho1*(h1-psi1)
 
-                        # checking intermediate results
-                        if(np.mod(k,4)==0):  # check Lagrangian
-                            lagr = np.zeros(4)
-                            lagr[2] = 1/2*np.linalg.norm(h-psi)**2
-                            lagr[3] = np.sum(lagr[0:3])
-                            print("%d %.2e %.2f %.4e %.4e %.4e %.4e " % (k,  np.linalg.norm(
-                                flow), rho1, *lagr))
-                            sys.stdout.flush()           
-                            dxchange.write_tiff_stack(
-                                u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/cg_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'_'+str(alpha)+'/rect'+str(k)+'/r', overwrite=True)    
-                        # Updates
-                        rho1 = update_penalty(psi1, h1, h01, rho1)
-                        h01 = h1
+                    #     # checking intermediate results
+                    #     if(np.mod(k,4)==0):  # check Lagrangian
+                    #         lagr = np.zeros(4)
+                    #         lagr[2] = 1/2*np.linalg.norm(h-psi)**2
+                    #         lagr[3] = np.sum(lagr[0:3])
+                    #         print("%d %.2e %.2f %.4e %.4e %.4e %.4e " % (k,  np.linalg.norm(
+                    #             flow), rho1, *lagr))
+                    #         sys.stdout.flush()           
+                    #         dxchange.write_tiff_stack(
+                    #             u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/cg_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'_'+str(alpha)+'/rect'+str(k)+'/r', overwrite=True)    
+                    #     # Updates
+                    #     rho1 = update_penalty(psi1, h1, h01, rho1)
+                    #     h01 = h1
                         

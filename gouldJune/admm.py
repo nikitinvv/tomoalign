@@ -11,10 +11,9 @@ from timing import tic,toc
 import gc
 import scipy.ndimage as ndimage
 matplotlib.use('Agg')
+
 centers={
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_721prj_180deg_1s_170': 1211,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167': 1224,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_4800prj_720deg_166': 1224,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/gouldJune/Sple1_laser_interlaced_721prj_0.5s_112': 1224,
 }
 ngpus = 4
 
@@ -104,10 +103,10 @@ def unpad(data,ne,n):
     return data[:,:,ne//2-n//2:ne//2+n//2]
 
 def interpdense(u,psi,lamd,flow):
-    u = ndimage.zoom(u,2,order=3)
-    psi = ndimage.zoom(psi,(1,2,2),order=3)
-    lamd = ndimage.zoom(lamd,(1,2,2),order=3)
-    flow = ndimage.zoom(flow,(1,2,2,1),order=3)/2    
+    u = ndimage.zoom(u,2,order=1)
+    psi = ndimage.zoom(psi,(1,2,2),order=1)
+    lamd = ndimage.zoom(lamd,(1,2,2),order=1)
+    flow = ndimage.zoom(flow,(1,2,2,1),order=1)/2    
     return u,psi,lamd,flow
 
 if __name__ == "__main__":
@@ -116,10 +115,10 @@ if __name__ == "__main__":
     nth = np.int(sys.argv[2])
     name = sys.argv[3]   
     
-    w = [256,128,64]
-    niter = [48*2,24*2,12*2+1]
+    w = [256,128,64,40]
+    niter = [48*2,24*2,11*2,7*2]
     #niter=[2,2,2]
-    binnings=[3,2,1]
+    binnings=[3,2,1,0]
     # ADMM solver
     for il in range(3):
         binning = binnings[il]

@@ -12,9 +12,7 @@ import gc
 import scipy.ndimage as ndimage
 matplotlib.use('Agg')
 centers={
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_721prj_180deg_1s_170': 1211,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167': 1224,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_4800prj_720deg_166': 1224,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/batteryJune/Battery_G2_16nmZP_tube_lens_interlaced_2000prj_2s_108': 671,
 }
 ngpus = 4
 
@@ -104,10 +102,10 @@ def unpad(data,ne,n):
     return data[:,:,ne//2-n//2:ne//2+n//2]
 
 def interpdense(u,psi,lamd,flow):
-    u = ndimage.zoom(u,2,order=3)
-    psi = ndimage.zoom(psi,(1,2,2),order=3)
-    lamd = ndimage.zoom(lamd,(1,2,2),order=3)
-    flow = ndimage.zoom(flow,(1,2,2,1),order=3)/2    
+    u = ndimage.zoom(u,2,order=1)
+    psi = ndimage.zoom(psi,(1,2,2),order=1)
+    lamd = ndimage.zoom(lamd,(1,2,2),order=1)
+    flow = ndimage.zoom(flow,(1,2,2,1),order=1)/2    
     return u,psi,lamd,flow
 
 if __name__ == "__main__":
@@ -116,25 +114,24 @@ if __name__ == "__main__":
     nth = np.int(sys.argv[2])
     name = sys.argv[3]   
     
-    w = [256,128,64]
-    niter = [48*2,24*2,12*2+1]
+    w = [128,64,40]
+    niter = [24*2,11*2,7*2]
     #niter=[2,2,2]
-    binnings=[3,2,1]
+    binnings=[2,1,0]
     # ADMM solver
     for il in range(3):
         binning = binnings[il]
-        data = np.zeros([ndsets*nth,2048//pow(2,binning),2448//pow(2,binning)],dtype='float32')
+        data = np.zeros([ndsets*nth,2048//pow(2,binning),1408//pow(2,binning)],dtype='float32')
         theta = np.zeros(ndsets*nth,dtype='float32')
         for k in range(ndsets):
             data[k*nth:(k+1)*nth] = np.load(name+'_bin'+str(binning)+str(k)+'.npy').astype('float32')                                   
             theta[k*nth:(k+1)*nth] = np.load(name+'_theta'+str(k)+'.npy').astype('float32')
         [ntheta, nz, n] = data.shape  # object size n x,y
-        
         data[np.isnan(data)]=0            
         data-=np.mean(data)
         mmin,mmax = find_min_max(data)
         # pad data    
-        ne = 3584//pow(2,binning)    
+        ne = 1408//pow(2,binning)    
         #ne=n
         center = centers[sys.argv[3]]+(ne//2-n//2)*pow(2,binning)        
         pnz = 8*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography

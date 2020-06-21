@@ -11,10 +11,9 @@ from timing import tic,toc
 import gc
 import scipy.ndimage as ndimage
 matplotlib.use('Agg')
+
 centers={
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_721prj_180deg_1s_170': 1211,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167': 1224,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_4800prj_720deg_166': 1224,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/chipJune/chip_16nmZP_tube_lens_interlaced_2000prj_3s_098': 1255,
 }
 ngpus = 4
 
@@ -114,32 +113,39 @@ if __name__ == "__main__":
 
     ndsets = np.int(sys.argv[1])
     nth = np.int(sys.argv[2])
-    name = sys.argv[3]   
+    nsets = np.int(sys.argv[3])
+    name = sys.argv[4]   
     
-    w = [256,128,64]
-    niter = [48*2,24*2,12*2+1]
-    #niter=[2,2,2]
-    binnings=[3,2,1]
+    w = [256,128,80,60]
+    niter = [48*2,24*2,12*2+1,10*2+1]
+    # niter=[2,2,2,2]
+    binnings=[3,2,1,0]
     # ADMM solver
-    for il in range(3):
+    for il in range(4):
         binning = binnings[il]
-        data = np.zeros([ndsets*nth,2048//pow(2,binning),2448//pow(2,binning)],dtype='float32')
-        theta = np.zeros(ndsets*nth,dtype='float32')
-        for k in range(ndsets):
-            data[k*nth:(k+1)*nth] = np.load(name+'_bin'+str(binning)+str(k)+'.npy').astype('float32')                                   
-            theta[k*nth:(k+1)*nth] = np.load(name+'_theta'+str(k)+'.npy').astype('float32')
+        data = np.zeros([ndsets*nth*nsets,2048//pow(2,binning),2448//pow(2,binning)],dtype='float32')
+        theta = np.zeros(ndsets*nth*nsets,dtype='float32')
+        for j in range(nsets):        
+            name0 = name[:-2]+str(np.int(name[-2:])+j)
+           # print(name0)
+            for k in range(ndsets):
+                data[j*ndsets*nth+k*nth:j*ndsets*nth+(k+1)*nth] = np.load(name0+'_bin'+str(binning)+str(k)+'.npy').astype('float32')                                   
+                theta[j*ndsets*nth+k*nth:j*ndsets*nth+(k+1)*nth] = np.load(name0+'_theta'+str(k)+'.npy').astype('float32')
+        data=data[:,(256+256)//pow(2,binning):(-256-256)//pow(2,binning)]
+        # exit()
         [ntheta, nz, n] = data.shape  # object size n x,y
         
         data[np.isnan(data)]=0            
         data-=np.mean(data)
         mmin,mmax = find_min_max(data)
         # pad data    
-        ne = 3584//pow(2,binning)    
+        # ne = 3584//pow(2,binning)    
+        ne = 3072//pow(2,binning)
         #ne=n
-        center = centers[sys.argv[3]]+(ne//2-n//2)*pow(2,binning)        
-        pnz = 8*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
-        ptheta = 20
-        dxchange.write_tiff_stack(data,name+'/data/d',overwrite=True)
+        center = centers[sys.argv[4]]+(ne//2-n//2)*pow(2,binning)        
+        pnz = 4*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
+        ptheta = 10
+        #dxchange.write_tiff_stack(data,name+'/data/d',overwrite=True)
         #exit()
         if(il==0):
             u = np.zeros([nz, ne, ne], dtype='float32')
@@ -159,7 +165,7 @@ if __name__ == "__main__":
                     # registration
                    # print(np.linalg.norm(psi-data))
                     flow = dslv.registration_flow_batch(
-                        psi, data, mmin, mmax, flow.copy(), pars, 20) 
+                        psi, data, mmin, mmax, flow.copy(), pars, 10) 
                    # Tpsi = dslv.apply_flow_gpu_batch(psi, flow)
                    # print(np.linalg.norm(Tpsi-data))
                        

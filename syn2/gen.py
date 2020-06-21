@@ -143,7 +143,7 @@ def deform_data(u,theta,displacement0,k):
     displacement = displacement0*(1-np.exp(np.linspace(0,1,ntheta)[k]))
     ud = elasticdeform.deform_grid(u, displacement, order=5, mode='mirror', crop=None, prefilter=True, axis=None) 
     print(np.linalg.norm(ud))
-    with tc.SolverTomo(theta[k:k+1], 1, nz, ne, 64, n/2+(ne-n)/2, 4) as tslv:
+    with tc.SolverTomo(theta[k:k+1], 1, nz, ne, 256, n/2+(ne-n)/2, 1) as tslv:
         data=tslv.fwd_tomo_batch(ud)
     return data
 
@@ -164,13 +164,22 @@ def cyl(r,c,h,rx,ry,rz,n):
     circ2 = ((x-c[1])**2+(y-c[0])**2<r-0.9/n).astype('float32')
     f = np.zeros([n,n,n],dtype='float32')
     f[n//2-h//2:n//2+h//2]=circ1-circ2
-    print(np.linalg.norm(f))
+   # print(np.linalg.norm(f))
     f=ndimage.rotate(f,rx,axes=(1,0),reshape=False,order=3)
     f=ndimage.rotate(f,ry,axes=(1,2),reshape=False,order=3)
     f=ndimage.rotate(f,rz,axes=(2,0),reshape=False,order=3)
     
     return f
 
+def prealign(data):
+    mmin,mmax = find_min_max(data)
+    pars = [0.5,1, 2*n, 4, 5, 1.1, 4]
+    for k in range(1,ntheta//irot):
+       with dc.SolverDeform(irot, nz, n, 16) as dslv:
+           flow = dslv.registration_flow_batch(
+                        data[k*irot:(k+1)*irot], data[0*irot:(0+1)*irot], mmin[:irot], mmax[:irot], None, pars, 16) 
+           data[k*irot:(k+1)*irot] = dslv.apply_flow_gpu_batch(data[k*irot:(k+1)*irot], flow)
+    return data
 f = cyl(0.01,[0.1,0.2],256,30,45,30,256)
 f = f+0.4*cyl(0.01,[-0.1,-0.2],256,-30,-15,30,256)
 f = f+0.6*cyl(0.01,[-0.3,-0.3],256,-30,-95,-40,256)
@@ -207,29 +216,32 @@ binning=0
 # np.save('r',r)#
 alpha=5e-4
 r = np.load('r.npy')
-for irot in [384]: 
+for irot in [96]: 
     print('irot',irot)
     theta = np.array(genang(ntheta,irot)).astype('float32')/360*np.pi*2
-    for idef in [6,10,14,18,22]:
+    for idef in [12]:
         print('idef',idef)
         data0 = unpad(deform_data_batch(f,theta,r*idef),ne,n)
         with tc.SolverTomo(theta, ntheta, nz, ne, 256, n/2+(ne-n)/2, 1) as tslv:
             with dc.SolverDeform(ntheta, nz, n, 16) as dslv:
-                for inoise in range(0,6):
+                for inoise in range(0,3):
                     print('inoise',inoise)
+                    data0[data0<0]=0
                     if(inoise==0):
                         data=data0
                     else:
                         data = np.random.poisson(data0*128/pow(2,inoise)).astype('float32')*pow(2,inoise)/128
 
                     dxchange.write_tiff(data,'/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/datad/data_'+str(idef)+'_'+str(inoise)+'_'+str(irot),overwrite=True)
+                    #data = dxchange.read_tiff('/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/datad/data_'+str(idef)+'_'+str(inoise)+'_'+str(irot)+'.tiff').copy()
+                    data = prealign(data)
                     data-=np.mean(data)
                     
 
                     print('cg')                                        
                     u = np.zeros([nz, ne, ne], dtype='float32')
                     ucg = tslv.cg_tomo_batch(pad(data,ne,n), u, 64) 
-                    dxchange.write_tiff(ucg[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],'/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/ucg'+str(idef)+'_'+str(inoise)+'_'+str(irot),overwrite=True)
+                    dxchange.write_tiff(ucg[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],'/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/ucgp'+str(idef)+'_'+str(inoise)+'_'+str(irot),overwrite=True)
                    # continue
                     
 
@@ -374,7 +386,7 @@ for irot in [384]:
                                 flow), rho1, *lagr))
                             sys.stdout.flush()           
                             dxchange.write_tiff_stack(
-                                u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/cg_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'_'+str(alpha)+'/rect'+str(k)+'/r', overwrite=True)    
+                                u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  '/data/staff/tomograms/vviknik/tomoalign_vincent_data/syn2/'+'/cgp_'+'_'+str(ntheta)+str(idef)+'_'+str(inoise)+'_'+str(irot)+'_'+str(alpha)+'/rect'+str(k)+'/r', overwrite=True)    
                         # Updates
                         rho1 = update_penalty(psi1, h1, h01, rho1)
                         h01 = h1

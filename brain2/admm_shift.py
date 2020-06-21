@@ -117,7 +117,7 @@ if __name__ == "__main__":
     name = sys.argv[3]   
     
     w = [512,1024,2048]
-    niter = [48,24,13]
+    niter = [48*2,24*2,13*2]
     binnings=[3,2,1]
     # ADMM solver
     for il in range(3):
