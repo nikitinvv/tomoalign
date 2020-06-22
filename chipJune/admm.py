@@ -103,10 +103,10 @@ def unpad(data,ne,n):
     return data[:,:,ne//2-n//2:ne//2+n//2]
 
 def interpdense(u,psi,lamd,flow):
-    u = ndimage.zoom(u,2,order=3)
-    psi = ndimage.zoom(psi,(1,2,2),order=3)
-    lamd = ndimage.zoom(lamd,(1,2,2),order=3)
-    flow = ndimage.zoom(flow,(1,2,2,1),order=3)/2    
+    u = ndimage.zoom(u,2,order=1)
+    psi = ndimage.zoom(psi,(1,2,2),order=1)
+    lamd = ndimage.zoom(lamd,(1,2,2),order=1)
+    flow = ndimage.zoom(flow,(1,2,2,1),order=1)/2    
     return u,psi,lamd,flow
 
 if __name__ == "__main__":
@@ -140,20 +140,20 @@ if __name__ == "__main__":
         mmin,mmax = find_min_max(data)
         # pad data    
         # ne = 3584//pow(2,binning)    
-        ne = 3072//pow(2,binning)
+        ne = 2448//pow(2,binning)
         #ne=n
         center = centers[sys.argv[4]]+(ne//2-n//2)*pow(2,binning)        
         pnz = 4*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
         ptheta = 10
         #dxchange.write_tiff_stack(data,name+'/data/d',overwrite=True)
         #exit()
-        if(il==0):
-            u = np.zeros([nz, ne, ne], dtype='float32')
-            psi = data.copy()*0
-            lamd = np.zeros([ntheta, nz, n], dtype='float32')
-            flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
-        else:            
-            u, psi, lamd, flow = interpdense(u,psi,lamd,flow)
+        # if(il==0):
+        u = np.zeros([nz, ne, ne], dtype='float32')
+        psi = data.copy()*0
+        lamd = np.zeros([ntheta, nz, n], dtype='float32')
+        flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
+        # else:            
+            # u, psi, lamd, flow = interpdense(u,psi,lamd,flow)
 
         # optical flow parameters
         pars = [0.5,1, w[il], 4, 5, 1.1, 4]
