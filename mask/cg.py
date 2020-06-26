@@ -23,6 +23,9 @@ centers={
 '/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_PAN_8keV_phase_interlaced_1201prj_1s_046': 1241,
 '/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_3h_8keV_phase_interlaced_1201prj_0.5s_047_049': 1226,
 '/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_3h_ROI2_8keV_phase_interlaced_1201prj_0.5s_047_050': 1209,
+'/local/data/vnikitin/mask/Sample9/Sple9_interlaced_721prj_1s_127': 1215,
+'/local/data/vnikitin/mask/Sample11/Sple11_flyscan_721prj_0.5s_132': 1252,
+'/local/data/vnikitin/mask/Sample15/Sple15_flyscan_721prj_0.5s_136': 1290,
 }
 ngpus = 4
 
@@ -62,7 +65,7 @@ if __name__ == "__main__":
     nth = np.int(sys.argv[2])
     name = sys.argv[3]   
     
-    niter = 128
+    niter = 64
     binning=1
     data = np.zeros([ndsets*nth,2048//pow(2,binning),2448//pow(2,binning)],dtype='float32')
     theta = np.zeros(ndsets*nth,dtype='float32')

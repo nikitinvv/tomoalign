@@ -12,23 +12,10 @@ import gc
 import scipy.ndimage as ndimage
 matplotlib.use('Agg')
 centers={
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run1_8keV_phase_interlaced_100prj_per_rot_1201prj_1s_006': 1204,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run21_40min_8keV_phase_interlaced_1201prj_1s_012': 1187,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PAN_PI_PBI_new_ROI_8keV_phase_interlaced_2000prj_1s_042':  1250,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PAN_PI_ROI2_8keV_phase_interlaced_1201prj_0.5s_037':  1227,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PAN_PI_PBI_new_ROI_8keV_phase_interlaced_1201prj_0.5s_041': 1248,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024': 1202,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_PAN_8keV_phase_721prj_0.5s_045': 1244,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_PAN_8keV_phase_interlaced_1201prj_1s_046': 1241,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_PAN_ROI2_8keV_phase_interlaced_1201prj_0.5s_047': 1233,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_3h_8keV_phase_interlaced_1201prj_0.5s_047_049': 1226,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_3h_ROI2_8keV_phase_interlaced_1201prj_0.5s_047_050': 1209,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_3h_ROI3_8keV_phase_interlaced_721prj_0.5s_053': 1273,
-'/local/data/vnikitin/mask/Sample9/Sple9_interlaced_721prj_1s_127': 1215,
-'/local/data/vnikitin/mask/Sample11/Sple11_flyscan_721prj_0.5s_132': 1252,
-'/local/data/vnikitin/mask/Sample15/Sple15_flyscan_721prj_0.5s_136': 1290,
+'/local/data/vnikitin/ZP/Kenan_ZP_9100eV_interlaced_-14to16deg_3s_090': 1160,
 }
 ngpus = 4
+
 def myplot(u, psi, flow, binning):
     [ntheta, nz, n] = psi.shape
 
@@ -72,6 +59,10 @@ def myplot(u, psi, flow, binning):
         name+'/flowfw_'+'_'+str(ntheta)+'/'+str(k))
     plt.close()
 
+
+
+
+
 def update_penalty(psi, h, h0, rho):
     # rho
     r = np.linalg.norm(psi - h)**2
@@ -83,6 +74,10 @@ def update_penalty(psi, h, h0, rho):
     return rho
         
 def find_min_max(data):
+    # s = np.std(data,axis=(1,2))    
+    # m = np.mean(data,axis=(1,2))
+    # mmin = m-2*s
+    # mmax = m+2*s
     mmin = np.zeros(data.shape[0],dtype='float32')
     mmax = np.zeros(data.shape[0],dtype='float32')
     
@@ -112,16 +107,17 @@ def interpdense(u,psi,lamd,flow):
     lamd = ndimage.zoom(lamd,(1,2,2),order=1)
     flow = ndimage.zoom(flow,(1,2,2,1),order=1)/2    
     return u,psi,lamd,flow
-    
+
 if __name__ == "__main__":
 
     ndsets = np.int(sys.argv[1])
     nth = np.int(sys.argv[2])
     name = sys.argv[3]   
     
-    w = [256,128,64]
-    niter = [96,48,24]
-    binnings=[3,2,1]
+    w = [512,256,128]
+    niter = [96,48,50]
+    #niter=[2,2,2]
+    binnings=[2,1,0]
     # ADMM solver
     for il in range(3):
         binning = binnings[il]
@@ -130,44 +126,46 @@ if __name__ == "__main__":
         for k in range(ndsets):
             data[k*nth:(k+1)*nth] = np.load(name+'_bin'+str(binning)+str(k)+'.npy').astype('float32')                                   
             theta[k*nth:(k+1)*nth] = np.load(name+'_theta'+str(k)+'.npy').astype('float32')
-            [ntheta, nz, n] = data.shape  # object size n x,y
         [ntheta, nz, n] = data.shape  # object size n x,y
-   
+        
         data[np.isnan(data)]=0            
         data-=np.mean(data)
         mmin,mmax = find_min_max(data)
         # pad data    
-        ne = 3456//pow(2,binning)    
+        ne = (2048+512)//pow(2,binning)    
         #ne=n
         center = centers[sys.argv[3]]+(ne//2-n//2)*pow(2,binning)        
         pnz = 8*pow(2,binning)  # number of slice partitions for simultaneous processing in tomography
-        ptheta = 60
-        # initial guess
-
+        ptheta = 20
+        #dxchange.write_tiff_stack(data,name+'/data/d',overwrite=True)
+        #exit()
         if(il==0):
             u = np.zeros([nz, ne, ne], dtype='float32')
-            psi = data.copy()
+            psi = data.copy()*0
             lamd = np.zeros([ntheta, nz, n], dtype='float32')
             flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
         else:            
             u, psi, lamd, flow = interpdense(u,psi,lamd,flow)
-        
+
         # optical flow parameters
-        pars = [0.5,0, w[il], 4, 5, 1.1, 4]
+        pars = [0.5,1, w[il], 4, 5, 1.1, 4]
         with tc.SolverTomo(theta, ntheta, nz, ne, pnz, center/pow(2, binning), ngpus) as tslv:
-             with dc.SolverDeform(ntheta, nz, n, ptheta) as dslv:
+            with dc.SolverDeform(ntheta, nz, n, ptheta) as dslv:
                 rho = 0.5
                 h0 = psi
                 for k in range(niter[il]):
                     # registration
+                   # print(np.linalg.norm(psi-data))
                     flow = dslv.registration_flow_batch(
                         psi, data, mmin, mmax, flow.copy(), pars, 20) 
-                    
+                   # Tpsi = dslv.apply_flow_gpu_batch(psi, flow)
+                   # print(np.linalg.norm(Tpsi-data))
+                       
                     # deformation subproblem
                     psi = dslv.cg_deform_gpu_batch(data, psi, flow, 4,
                                                 unpad(tslv.fwd_tomo_batch(u),ne,n)+lamd/rho, rho)
                     # tomo subproblem
-                    u = tslv.cg_tomo_batch(pad(psi-lamd/rho,ne,n), u, 4)
+                    u = tslv.cg_tomo_batch(pad(psi-lamd/rho,ne,n), u, 4)                    
                     h = unpad(tslv.fwd_tomo_batch(u),ne,n)
                     # lambda update
                     lamd = lamd+rho*(h-psi)
@@ -183,14 +181,18 @@ if __name__ == "__main__":
                         lagr[3] = np.sum(lagr[0:3])
                         print("%d %d %.2e %.2f %.4e %.4e %.4e %.4e " % (k, pars[2], np.linalg.norm(
                             flow), rho, *lagr))
+                        sys.stdout.flush()           
                         dxchange.write_tiff_stack(
                             u[:,ne//2-n//2:ne//2+n//2,ne//2-n//2:ne//2+n//2],  name+'/fw_'+'_'+str(ntheta)+'/rect'+str(k)+'/r', overwrite=True)
                         dxchange.write_tiff_stack(
                         psi.real, name+'/fw_'+'_'+str(ntheta)+'/psi'+str(k)+'/r', overwrite=True)
+                        if not os.path.exists(name+'/fw_'+'_'+str(ntheta)+'/flownpy'):
+                          os.makedirs(name+'/fw_'+'_'+str(ntheta)+'/flownpy')
+                        np.save(name+'/fw_'+'_'+str(ntheta)+'/flownpy/'+str(k),flow)
 
                     # Updates
                     rho = update_penalty(psi, h, h0, rho)
                     h0 = h
-                    pars[2] -= 2
-                    sys.stdout.flush()
+                    if(pars[2]>12):
+                        pars[2] -= 4
                     gc.collect()

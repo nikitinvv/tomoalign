@@ -43,20 +43,13 @@ if __name__ == "__main__":
     # read data
         prj, flat, dark, theta = dxchange.read_aps_32id(
             file_name, sino=(sino_start, sino_end), proj=(theta_end*k,theta_end*(k+1)))
-        flat = flat[10:,prj.shape[1]//2-512:prj.shape[1]//2+512,prj.shape[2]//2-512:prj.shape[2]//2+512]
-        dark = dark[:,prj.shape[1]//2-512:prj.shape[1]//2+512,prj.shape[2]//2-512:prj.shape[2]//2+512]        
-        prj = prj[:,prj.shape[1]//2-512:prj.shape[1]//2+512,prj.shape[2]//2-512:prj.shape[2]//2+512]
-        
-        #flat = flat[:10]# Vincent failed something
-        print(theta.shape)
         theta = theta[theta_end*k:theta_end*(k+1)]
+        print(theta.shape)
+        print(theta)
         # preprocess
-        #dxchange.write_tiff_stack(prj,name+'/data/d'+str(binning),overwrite=True) 
-        #dxchange.write_tiff_stack(flat,name+'/white/d'+str(binning),overwrite=True) 
-        
         prj = preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remove_rings,
                             FF_drift_corr=flat_field_drift_corr, downsapling=binning)
-        #dxchange.write_tiff_stack(prj,name+'/data'+str(binning),overwrite=True)
+
         np.save(name+'_bin'+str(binning)+str(k),prj)        
         np.save(name+'_theta'+str(k),theta)  
             

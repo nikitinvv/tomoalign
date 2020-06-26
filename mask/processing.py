@@ -43,7 +43,7 @@ if __name__ == "__main__":
     # read data
         prj, flat, dark, theta = dxchange.read_aps_32id(
             file_name, sino=(sino_start, sino_end), proj=(theta_end*k,theta_end*(k+1)))
-        flat = flat[:10]# Vincent failed something
+        #flat = flat[:10]# Vincent failed something
         print(theta.shape)
         theta = theta[theta_end*k:theta_end*(k+1)]
         # preprocess

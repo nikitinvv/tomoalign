@@ -9,19 +9,14 @@ import matplotlib.pyplot as plt
 import matplotlib
 from timing import tic,toc
 import gc
-def find_min_max(data):
-    s = np.std(data,axis=(1,2))    
-    m = np.mean(data,axis=(1,2))
-    mmin = m-2*s
-    mmax = m+2*s
-    return mmin,mmax
+
 
 if __name__ == "__main__":
-    binning = 1
+    binning = 2
     ndsets = np.int(sys.argv[1])
     nth = np.int(sys.argv[2])
     name = sys.argv[3]
-    data = np.zeros([ndsets*nth,2048//2//pow(2,binning),2048//2//pow(2,binning)],dtype='float32')
+    data = np.zeros([ndsets*nth,2048//pow(2,binning),2448//pow(2,binning)],dtype='float32')
     theta = np.zeros(ndsets*nth,dtype='float32')
     for k in range(ndsets):
         data[k*nth:(k+1)*nth] = np.load(name+'_bin'+str(binning)+str(k)+'.npy').astype('float32')                                   
