@@ -6,7 +6,7 @@ __pycache__/
 # npy
 *.npy
 3Dstd/*.npy
-*.tiff
+# *.tiff
 *.png
 slurm*
 # tmp
