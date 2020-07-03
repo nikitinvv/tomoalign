@@ -61,48 +61,41 @@ def admm_of(data, theta, pnz, ptheta, center, stepwin, ngpus, niter, titer):
             # optical flow parameters (see openCV function for Farneback's algorithm)
             pars = [0.5, 1, n, titer, 5, 1.1, 4]
             rho = 0.5  # weighting factor in ADMM
-            lagr = np.zeros([niter, 4],dtype='float32')
+            lagr = np.zeros([niter, 4], dtype='float32')
 
             t = np.zeros([4])
             for k in range(niter):
 
                 # 1. Solve the alignment sub-problem
                 # register flow
-                tic()
                 flow = dslv.registration_flow_batch(
                     psi, data, mmin, mmax, flow, pars)
-                t[0] = toc()
                 # unwarping
-                tic()
                 psi = dslv.cg_deform_gpu_batch(data, psi, flow, titer, unpaddata(
                     tslv.fwd_tomo_batch(u), ne, n)+lamd/rho, rho)
-                t[1] = toc()
                 # 2. Solve the tomography sub-problen
-                tic()
-                u = tslv.cg_tomo_batch(paddata(psi-lamd/rho, ne, n), u, 4)
-                t[2] = toc()
+                u = tslv.cg_tomo_batch(paddata(psi-lamd/rho, ne, n), u, titer)
 
                 # compute forward tomography operator for further updates of rho and lambda
-                tic()
                 h = unpaddata(tslv.fwd_tomo_batch(u), ne, n)
-                t[3] = toc()
                 # 3. dual update
                 lamd = lamd+rho*(h-psi)
-                print(*t, np.sum(t))
 
-                if(np.mod(k, 1) == 0):  # check Lagrangian, save current iteration results
-                    Tpsi = dslv.apply_flow_gpu_batch(psi, flow)
-                    lagr[k, 0] = 0.5*np.linalg.norm(Tpsi-data)**2
+                if(np.mod(k, 4) == 0):  # check Lagrangian, save current iteration results
+                    Dpsi = dslv.apply_flow_gpu_batch(psi, flow)
+                    lagr[k, 0] = 0.5*np.linalg.norm(Dpsi-data)**2
                     lagr[k, 1] = np.sum(lamd*(h-psi))
                     lagr[k, 2] = 0.5*rho*np.linalg.norm(h-psi)**2
                     lagr[k, 2] = 0.5*rho*np.linalg.norm(h-psi)**2
-                    lagr[k, 3] = np.sum(lagr[k,0:3])
+                    lagr[k, 3] = np.sum(lagr[k, 0:3])
                     print("iter %d, wsize %d, rho %.2f, Lagrangian %.4e %.4e %.4e Total %.4e " % (
                         k, pars[2], rho, *lagr[k]))
                     # save object
-                    dxchange.write_tiff(unpadobject(u, ne, n),  'data/of_recon/recon/iter'+str(k), overwrite=True)
+                    dxchange.write_tiff(unpadobject(
+                        u, ne, n),  'data/of_recon/recon/iter'+str(k), overwrite=True)
                     # save flow figure
-                    dslv.flowplot(u, psi, flow, 'data/of_recon/flow/iter'+str(k))
+                    dslv.flowplot(
+                        u, psi, flow, 'data/of_recon/flow_iter'+str(k))
 
                 # update rho
                 rho = _update_penalty(psi, h, h0, rho)
@@ -110,7 +103,7 @@ def admm_of(data, theta, pnz, ptheta, center, stepwin, ngpus, niter, titer):
 
                 if(pars[2] > 12):  # limit optical flow window size
                     pars[2] -= stepwin
-    return u, lagr
+    return u#, lagr
 
 
 def admm_of_reg(data, theta, pnz, ptheta, center, stepwin, alpha, ngpus, niter, titer):
@@ -119,7 +112,7 @@ def admm_of_reg(data, theta, pnz, ptheta, center, stepwin, alpha, ngpus, niter, 
     [ntheta, nz, n] = data.shape
     ne = 3*n//2  # padded size
     # tomographic solver on GPU
-    lagr = np.zeros([niter, 6],dtype='float32')
+    lagr = np.zeros([niter, 6], dtype='float32')
 
     with SolverTomo(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus) as tslv:
         # alignment solver on GPU
@@ -168,21 +161,22 @@ def admm_of_reg(data, theta, pnz, ptheta, center, stepwin, alpha, ngpus, niter, 
                 lamd1 = lamd1+rho1*(h1-psi1)
                 lamd2 = lamd2+rho2*(h2-psi2)
 
-                if(np.mod(k, 1) == 0):  # check Lagrangian, save current iteration results
-                    Tpsi1 = dslv.apply_flow_gpu_batch(psi1, flow)
-                    lagr[k, 0] = 0.5*np.linalg.norm(Tpsi1-data)**2
+                if(np.mod(k, 4) == 0):  # check Lagrangian, save current iteration results
+                    Dpsi1 = dslv.apply_flow_gpu_batch(psi1, flow)
+                    lagr[k, 0] = 0.5*np.linalg.norm(Dpsi1-data)**2
                     lagr[k, 1] = np.sum(lamd1*(h1-psi1))
                     lagr[k, 2] = 0.5*rho1*np.linalg.norm(h1-psi1)**2
                     lagr[k, 3] = 0.5*rho2*np.linalg.norm(h2-psi2)**2
                     lagr[k, 4] = np.sum(np.sqrt(np.sum(psi2**2, 0)))
-                    lagr[k, 5] = np.sum(lagr[k,0:5])
+                    lagr[k, 5] = np.sum(lagr[k, 0:5])
                     print("iter %d, wsize %d, rho (%.2f,%.2f), Lagrangian terms %.4e %.4e %.4e %.4e %.4e Total %.4e " % (
                         k, pars[2], rho1, rho2, *lagr[k]))
                     # save object
                     dxchange.write_tiff(unpadobject(
-                    u, ne, n),  'data/of_recon_reg/recon/iter'+str(k), overwrite=True)
+                        u, ne, n),  'data/of_recon_reg/recon/iter'+str(k), overwrite=True)
                     # save flow figure
-                    dslv.flowplot(u, psi1, flow, 'data/of_recon_reg/flow/iter'+str(k))
+                    dslv.flowplot(
+                        u, psi1, flow, 'data/of_recon_reg/flowiter'+str(k))
 
                 # update rho
                 rho1 = _update_penalty(psi1, h1, h01, rho1)
@@ -193,7 +187,7 @@ def admm_of_reg(data, theta, pnz, ptheta, center, stepwin, alpha, ngpus, niter, 
 
                 if(pars[2] > 12):  # limit optical flow window size
                     pars[2] -= stepwin
-    return u, lagr
+    return u#, lagr
 
 
 def _update_penalty(psi, h, h0, rho):
@@ -206,3 +200,4 @@ def _update_penalty(psi, h, h0, rho):
     elif (s > 10*r):
         rho *= 0.5
     return rho
+

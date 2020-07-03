@@ -83,7 +83,7 @@ def cyl(r, c, h, rx, ry, rz, n):
     return f
 
 
-def gen_cyl_data(n, ntheta, pprot, adef):
+def gen_cyl_data(n, ntheta, pprot, adef, noise=False):
     """Generate cylinders in 3D volume, deform them, compute projections, save to disk"""
 
     print('Start data generation')
@@ -103,11 +103,16 @@ def gen_cyl_data(n, ntheta, pprot, adef):
     [x, y] = np.mgrid[-ne//2:ne//2, -ne//2:ne//2]
     circ = (2*x/ne)**2+(2*y/ne)**2 < 1
     fe = np.zeros([nz, ne, ne], dtype='float32')
+    
     fe[:, ne//2-n//2:ne//2+n//2, ne//2-n//2:ne//2+n//2] = f
-    f = (fe-np.min(fe))/(np.max(fe)-np.min(fe))*circ
+    if(noise):
+        fe +=(ndimage.filters.gaussian_filter(np.random.random(fe.shape), 3, truncate=8).astype('float32')-0.5)*12
 
+    f = (fe-np.min(fe))/(np.max(fe)-np.min(fe))*circ
+ 
+    namepart = '_pprot'+str(pprot)+'_noise'+str(noise)
     dxchange.write_tiff(
-        f, 'data/init_object', overwrite=True)
+        f, 'data/init_object'+namepart, overwrite=True)
 
     # generate angles
     theta = np.array(gen_ang(ntheta, pprot)).astype('float32')/360*np.pi*2
@@ -121,14 +126,14 @@ def gen_cyl_data(n, ntheta, pprot, adef):
         data = tslv.fwd_tomo_batch(f)
 
     dxchange.write_tiff(
-        data, 'data/data', overwrite=True)
+        data, 'data/data'+namepart, overwrite=True)
 
     # compute data with deformation
     data = deform_data_batch(f, theta, r*adef)[:, :, ne//2-n//2:ne//2+n//2]
     dxchange.write_tiff(
-        data, 'data/deformed_data', overwrite=True)
+        data, 'data/deformed_data'+namepart, overwrite=True)
 
     # save angles, and displacement vectors
-    np.save('data/theta', theta)
+    np.save('data/theta'+namepart, theta)
     
     print('generated data have been written in data/')

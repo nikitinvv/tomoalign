@@ -150,9 +150,9 @@ class SolverDeform(deform):
             # update step
             psi = psi + gamma*d
             # check convergence
-            if (0):
-                print("%4d, %.3e, %.7e" %
-                      (i, gamma, minf(psi, Dpsi+gamma*Td)))
+            # if (0):
+            #     print("%4d, %.3e, %.7e" %
+            #           (i, gamma, minf(psi, Dpsi+gamma*Td)))
         return psi
 
     def cg_deform_multi_gpu(self, data, psi, flow,  titer, xi1, rho, lock, ids):

@@ -212,7 +212,7 @@ class SolverTomo(radonusfft):
             # line search
             Rd = self.fwd_tomo(d,gpu)
             gd = self.fwd_reg(d)
-            gamma = 0.5*self.line_search_ext(minf, 1, Ru, Rd,gu,gd)
+            gamma = 0.5#*self.line_search_ext(minf, 1, Ru, Rd,gu,gd)
             grad0 = grad
             # update step
             u = u + gamma*d

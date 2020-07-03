@@ -9,7 +9,7 @@ if __name__ == "__main__":
     n = 256
     ntheta = 384
     pprot = 192
-    adef = 10
+    # adef = 10
     # tomoalign.gen_cyl_data(n, ntheta, pprot, adef)
     data = dxchange.read_tiff('data/deformed_data.tiff')
     theta = np.load('data/theta.npy')
@@ -23,16 +23,13 @@ if __name__ == "__main__":
     ngpus = 4  # number of gpus
     nitercg = 64  # number of iterations in the cg scheme
     niteradmm = 64  # number of iterations in the ADMM scheme
-    titer = 4 # number of inner ADMM iterations
-    
-    alpha = 1e-8  # regularization parameter
-    
-    ucg = tomoalign.pcg(data, theta, pprot, pnz, center, ngpus, nitercg, titer)
-    dxchange.write_tiff(ucg, 'data/cg_recon/recon/iter'+str(nitercg))
+    niterinner = 4  # number of inner ADMM iterations
 
-    uof = tomoalign.admm_of(data, theta, pnz, ptheta, center, stepwin, ngpus, niteradmm, titer)
-    dxchange.write_tiff(uof, 'data/of_recon/recon/iter'+str(niteradmm))
+    ucg = tomoalign.pcg(data, theta, pprot, pnz, center, ngpus, nitercg)
+    dxchange.write_tiff(ucg, 'data/cg_recon/recon/iter' +
+                        str(nitercg), overwrite=True)
 
-    uofreg = tomoalign.admm_of_reg(
-        data, theta, pnz, ptheta, center, stepwin, alpha, ngpus, niteradmm, titer)
-    dxchange.write_tiff(uofreg, 'data/of_recon_reg/recon/iter'+str(niteradmm))
+    uof = tomoalign.admm_of(data, theta, pnz, ptheta,
+                            center, stepwin, ngpus, niteradmm, niterinner)
+    dxchange.write_tiff(uof, 'data/of_recon/recon/iter' +
+                        str(niteradmm), overwrite=True)
