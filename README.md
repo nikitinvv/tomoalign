@@ -1,12 +1,13 @@
 # tomoalign
 
+# Dependencies
+
+cupy, dxchange, swig, scikit-build
+
 # install
-
-https://github.com/math-vrn/deformcg
-
-https://github.com/math-vrn/tomocg
+python setup.py install
 
 # test
 
-see test_admm_shift.py
+test/test.py
 
