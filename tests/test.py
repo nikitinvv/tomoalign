@@ -18,18 +18,16 @@ if __name__ == "__main__":
     center = n/2
     pnz = n  # number of slice for simultaneus processing by one GPU in the tomography sub-problem
     ptheta = 16  # number of projections for simultaneus processing by one GPU in the alignment sub-problem
-    # step for decreasing window size (increase resolution) in Farneback's algorithm on each ADMM iteration
-    stepwin = 4
     ngpus = 4  # number of gpus
     nitercg = 64  # number of iterations in the cg scheme
     niteradmm = 64  # number of iterations in the ADMM scheme
-    niterinner = 4  # number of inner ADMM iterations
-
-    ucg = tomoalign.pcg(data, theta, pprot, pnz, center, ngpus, nitercg)
-    dxchange.write_tiff(ucg, 'data/cg_recon/recon/iter' +
+    startwin = n # starting window size in optical flow estimation
+    stepwin = 4 # step for decreasing the window size in optical flow estimtion
+    res = tomoalign.pcg(data, theta, pprot, pnz, center, ngpus, nitercg)
+    dxchange.write_tiff(res['u'], 'data/cg_recon/recon/iter' +
                         str(nitercg), overwrite=True)
 
-    uof = tomoalign.admm_of(data, theta, pnz, ptheta,
-                            center, stepwin, ngpus, niteradmm, niterinner)
-    dxchange.write_tiff(uof, 'data/of_recon/recon/iter' +
+    res = tomoalign.admm_of(data, theta, pnz, ptheta,
+                            center, ngpus, niteradmm, startwin, stepwin)
+    dxchange.write_tiff(res['u'], 'data/of_recon/recon/iter' +
                         str(niteradmm), overwrite=True)

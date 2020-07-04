@@ -29,6 +29,8 @@ class SolverTomo(radonusfft):
     def __init__(self, theta, ntheta, nz, n, pnz, center, ngpus):
         """Please see help(SolverTomo) for more info."""
         # create class for the tomo transform associated with first gpu
+        # print(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus)
+    
         super().__init__(ntheta, pnz, n, center, theta.ctypes.data, ngpus)
         self.nz = nz        
         
