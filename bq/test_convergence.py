@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     for pprot in [96,192,384]:
         namepart = '_pprot'+str(pprot)+'_noise'+str(noise)
-        # tomoalign.gen_cyl_data(n, ntheta, pprot, adef, noise)
+        tomoalign.gen_cyl_data(n, ntheta, pprot, adef, noise)
         # exit()
         data = dxchange.read_tiff('data/deformed_data'+namepart+'.tiff')
         theta = np.load('data/theta'+namepart+'.npy')
@@ -32,15 +32,11 @@ if __name__ == "__main__":
         ngpus = 4  # number of gpus
         niteradmm = 256  # number of iterations in the ADMM scheme
         
-        # for titer in [1,2,4,8,16,32,64]:        
-        #     uof,lagrof = tomoalign.reproj_of(data, theta, pnz, ptheta, center, stepwin*titer, ngpus, niteradmm//titer+1, titer)
-        #     dxchange.write_tiff(uof, 'data/re_recon/'+namepart+'/recon/iter'+str(niteradmm))
-        #     np.save('data/re_recon/lagr'+namepart+str(titer),lagrof)        
-
-        # for titer in [1]:        
-        #     uof,lagrof = tomoalign.admm_of(data, theta, pnz, ptheta, center, stepwin*titer, ngpus, niteradmm//titer+1, titer)
-        #     dxchange.write_tiff(uof, 'data/of_recon/'+namepart+'/recon/iter'+str(niteradmm))
-        #     np.save('data/of_recon/lagr'+namepart+str(titer),lagrof)        
+        
+        for titer in [1,2,4,8,16,32]:        
+            uof,lagrof = tomoalign.admm_of(data, theta, pnz, ptheta, center, stepwin*titer, ngpus, niteradmm//titer+1, titer)
+            dxchange.write_tiff(uof, 'data/of_recon/'+namepart+'/recon/iter'+str(niteradmm))
+            np.save('data/of_recon/lagr'+namepart+str(titer),lagrof)        
 
         fig = plt.figure(figsize=(8,5))    
         ax = fig.add_subplot(111)
@@ -49,10 +45,10 @@ if __name__ == "__main__":
             lagr = np.load('data/of_recon/lagr'+namepart+str(titer)+'.npy')
             plt.plot(1+np.arange(niteradmm//titer+1)*titer,lagr[:,3],linewidth=1.5,label='('+str(niteradmm//titer)+'/'+str(titer)+')')
             plt.xlim([0,niteradmm])
-            plt.legend(title=r'(ADMM/inner) iterations', loc="upper right",fontsize=20)
+            plt.legend(title='(ADMM/inner) iterations', loc="upper right",fontsize=20)
             ax.get_legend().get_title().set_fontsize('20')
-            plt.xlabel(r'joint iteration',fontsize=22)
-            plt.ylabel(r'error', rotation=90, fontsize=22)
+            plt.xlabel('joint iteration',fontsize=22)
+            plt.ylabel('error', rotation=90, fontsize=22)
             plt.grid(True)
             plt.xticks([0, 64, 128,192, 256])#,['0', r'64', r'128', r'192', r'256'])
             # plt.yticks(fontname = "Times New Roman") 
@@ -83,8 +79,8 @@ if __name__ == "__main__":
         plt.xlim([0,niteradmm])
         plt.legend(loc="upper right",fontsize=18)
         ax.get_legend().get_title().set_fontsize('18')
-        plt.xlabel(r'joint iteration',fontsize=18)
-        plt.ylabel(r'error', rotation=90, fontsize=18)
+        plt.xlabel('joint iteration',fontsize=18)
+        plt.ylabel('error', rotation=90, fontsize=18)
         plt.grid(True)
         plt.xticks([0, 64, 128,192, 256])#,['0', r'64', r'128', r'192', r'256'])
             # plt.yticks(fontname = "Times New Roman") 
@@ -99,6 +95,6 @@ if __name__ == "__main__":
 
         ax.set_yscale('log')
         plt.tight_layout()
-        plt.savefig('data/re_recon/convergence_inner_iter'+namepart+'.png')
+        plt.savefig('data/re_recon/convergence_inner_iter'+namepart+'.png', dpi=300)
 
     

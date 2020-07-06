@@ -99,7 +99,7 @@ class SolverTomo(radonusfft):
 
     def fwd_reg(self, u):
         """Forward operator for regularization (J)"""
-        res = cp.get_array_module(u).zeros([3, *u.shape], dtype='float32')
+        res = cp.get_array_module(u).zeros([2, *u.shape], dtype='float32')
         res[0, :, :, :-1] = u[:, :, 1:]-u[:, :, :-1]
         res[1, :, :-1, :] = u[:, 1:, :]-u[:, :-1, :]
         # res[2, :-1, :, :] = u[1:, :, :]-u[:-1, :, :]

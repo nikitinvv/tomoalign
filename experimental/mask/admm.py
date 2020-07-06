@@ -31,25 +31,29 @@ if __name__ == "__main__":
         theta[k*nth:(k+1)*nth] = np.load(fname+'_theta'+str(k)+'.npy').astype('float32')
     data[np.isnan(data)]=0           
     data-=np.mean(data)
-
-
     ngpus = 4
-    pprot = 100
-    nitercg = 128
     pnz = 64
-    center = centers[fname]/2
+    ptheta = 14
+    niteradmm = [96, 48, 25]  # number of iterations in the ADMM scheme
+    startwin = [256, 512, 1024]  # starting window size in optical flow estimation
+    # step for decreasing the window size in optical flow estimtion
+    stepwin = [0, 0, 0]
+    center = centers[fname]/pow(2,binning)    
+    
+  
+    data0 = data.copy()
+    data = np.ascontiguousarray(data0[0::2])
+    theta = np.ascontiguousarray(theta[0::2])
+    fname+='nondense_r1'    
+    res = tomoalign.admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niteradmm, startwin, stepwin, fname)
+    dxchange.write_tiff_stack(res['u'], fname+'/results_admm/u/r', overwrite=True)
+    dxchange.write_tiff_stack(res['psi'], fname+'/results_admm/psi/r', overwrite=True)
+    np.save(fname+'/results_admm/flow.npy',res['flow'])
+        
 
-    data0=data.copy()
-    data=np.ascontiguousarray(data0[::2])
-    theta=np.ascontiguousarray(theta[::2])
-    res = tomoalign.pcg(data, theta, pprot, pnz, center, ngpus, nitercg)
-    dxchange.write_tiff_stack(res['u'], fname+'/results_cgr1/u/r', overwrite=True)
-    
-    data=np.ascontiguousarray(data0[1::2])
-    theta=np.ascontiguousarray(theta[1::2])
-    
-    
-    res = tomoalign.pcg(data, theta, pprot, pnz, center, ngpus, nitercg)
-    dxchange.write_tiff_stack(res['u'], fname+'/results_cgr2/u/r', overwrite=True)
-    
-            
+    # data = data[0::2]    
+    # fname+='nondense_r1'    
+    # res = tomoalign.admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niteradmm, startwin, stepwin, fname)
+    # dxchange.write_tiff_stack(res['u'], fname+'/results_admm/u/r', overwrite=True)
+    # dxchange.write_tiff_stack(res['psi'], fname+'/results_admm/psi/r', overwrite=True)
+    # np.save(fname+'/results_admm/flow.npy',res['flow'])

@@ -6,7 +6,8 @@ from .solver_tomo import SolverTomo
 from .solver_deform import SolverDeform
 from .utils import *
 import dxchange
-
+import sys
+import scipy as sp
 
 def prealign(data, pprot):
     """prealign projections by optical flow according to adjacent interlaced angles"""
@@ -30,7 +31,7 @@ def pcg(data, theta, pprot, pnz, center, ngpus, niter):
     """Reconstruct with the _prealigned CG (pCG)"""
 
     [ntheta, nz, n] = data.shape
-    ne = 3*n//2  # padded size
+    ne = _take_psize(n)    
     u = np.zeros([nz, ne, ne], dtype='float32')
     # tomographic solver on GPU
     with SolverTomo(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus) as tslv:
@@ -40,12 +41,12 @@ def pcg(data, theta, pprot, pnz, center, ngpus, niter):
     return res
 
 
-def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, res=None):
+def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, res=None, fname='', titer=4):
     """Reconstruct with the optical flow method (OF)"""
     [ntheta, nz, n] = data.shape
-    ne = 3*n//2  # padded size
     # tomographic solver on GPU
-
+    ne = _take_psize(n)
+    
     with SolverTomo(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus) as tslv:
         # alignment solver on GPU
         with SolverDeform(ntheta, nz, n, ptheta, ngpus) as dslv:
@@ -68,7 +69,7 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                 flow = res['flow']
 
             # optical flow parameters (see openCV function for Farneback's algorithm)
-            pars = [0.5, 1, startwin, 4, 5, 1.1, 4]
+            pars = [0.5, 1, startwin, titer, 5, 1.1, 4]
             rho = 0.5  # weighting factor in ADMM
             lagr = np.zeros([niter, 4], dtype='float32')
 
@@ -80,10 +81,10 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                     psi, data, mmin, mmax, flow, pars)
 
                 # unwarping
-                psi = dslv.cg_deform_gpu_batch(data, psi, flow, 4, unpaddata(
+                psi = dslv.cg_deform_gpu_batch(data, psi, flow, titer, unpaddata(
                     tslv.fwd_tomo_batch(u), ne, n)+lamd/rho, rho)
                 # 2. Solve the tomography sub-problen
-                u = tslv.cg_tomo_batch(paddata(psi-lamd/rho, ne, n), u, 4)
+                u = tslv.cg_tomo_batch(paddata(psi-lamd/rho, ne, n), u, titer)
 
                 # compute forward tomography operator for further updates of rho and lambda
                 h = unpaddata(tslv.fwd_tomo_batch(u), ne, n)
@@ -99,12 +100,13 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                     lagr[k, 3] = np.sum(lagr[k, 0:3])
                     print("iter %d, wsize %d, rho %.2f, Lagrangian %.4e %.4e %.4e Total %.4e " % (
                         k, pars[2], rho, *lagr[k]))
+                    sys.stdout.flush()
                     # save object
                     dxchange.write_tiff(unpadobject(
-                        u, ne, n),  'data/of_recon/recon/iter'+str(k), overwrite=True)
+                        u, ne, n),  fname+'/data/of_recon/recon/iter'+str(k), overwrite=True)
                     # save flow figure
                     dslv.flowplot(
-                        u, psi, flow, 'data/of_recon/flow_iter'+str(k))
+                        u, psi, flow, fname+'/data/of_recon/flow_iter'+str(k))
 
                 # update rho
                 rho = _update_penalty(psi, h, h0, rho)
@@ -117,15 +119,16 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
         res['h0'] = h0
         res['lamd'] = lamd
         res['flow'] = flow
+        res['lagr'] = lagr
 
     return res
 
 
-def admm_of_reg(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin, stepwin, res=None):
+def admm_of_reg(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin, stepwin, res=None, fname=''):
     """Reconstruct with the optical flow method and regularization (OFTV)"""
 
     [ntheta, nz, n] = data.shape
-    ne = 3*n//2  # padded size
+    ne = _take_psize(n)
     # tomographic solver on GPU
     lagr = np.zeros([niter, 6], dtype='float32')
     with SolverTomo(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus) as tslv:
@@ -137,11 +140,11 @@ def admm_of_reg(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin,
             if(res == None):
                 u = np.zeros([nz, ne, ne], dtype='float32')
                 psi1 = data.copy()
-                psi2 = np.zeros([3, nz, ne, ne], dtype='float32')
+                psi2 = np.zeros([2, nz, ne, ne], dtype='float32')
                 h01 = psi1.copy()
                 h02 = psi2.copy()
                 lamd1 = np.zeros([ntheta, nz, n], dtype='float32')
-                lamd2 = np.zeros([3, nz, ne, ne], dtype='float32')
+                lamd2 = np.zeros([2, nz, ne, ne], dtype='float32')
                 flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
                 res = {}
             else:
@@ -154,7 +157,7 @@ def admm_of_reg(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin,
                 lamd2 = res['lamd2']
                 flow = res['flow']
             # optical flow parameters (see openCV function for Farneback's algorithm)
-            pars = [0.5, 1, n, 4, 5, 1.1, 4]
+            pars = [0.5, 1, startwin, 4, 5, 1.1, 4]
             rho1 = 0.5  # weighting factor in ADMM w.r.t. tomo sub-problem
             rho2 = 0.5  # weighting factor in ADMM w.r.t. deform sub-problem
 
@@ -193,12 +196,13 @@ def admm_of_reg(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin,
                     lagr[k, 5] = np.sum(lagr[k, 0:5])
                     print("iter %d, wsize %d, rho (%.2f,%.2f), Lagrangian terms %.4e %.4e %.4e %.4e %.4e Total %.4e " % (
                         k, pars[2], rho1, rho2, *lagr[k]))
+                    sys.stdout.flush()
                     # save object
                     dxchange.write_tiff(unpadobject(
-                        u, ne, n),  'data/of_recon_reg/recon/iter'+str(k), overwrite=True)
+                        u, ne, n),  fname+'/data/of_recon_reg/recon/iter'+str(k), overwrite=True)
                     # save flow figure
                     dslv.flowplot(
-                        u, psi1, flow, 'data/of_recon_reg/flowiter'+str(k))
+                        u, psi1, flow, fname+'/data/of_recon_reg/flowiter'+str(k))
                     
                 # update rho
                 rho1 = _update_penalty(psi1, h1, h01, rho1)
@@ -240,52 +244,98 @@ def _downsample(data, binning):
         res = 0.5*(res[:, :, ::2]+res[:, :, 1::2])
     return res
 
+def _fftupsample(f,dims):
+    paddim = np.zeros([np.ndim(f),2],dtype='int32')
+    dims = np.asarray(dims).astype('int32')
+    paddim[dims,0] = np.asarray(f.shape)[dims]//2
+    paddim[dims,1] = np.asarray(f.shape)[dims]//2 
+    fnew = sp.fft.ifftshift(sp.fft.fftn(sp.fft.fftshift(f,dims),axes=dims,workers=-1, overwrite_x=True),dims)    
+    fnew = np.pad(fnew,paddim)
+    fnew = sp.fft.ifftshift(sp.fft.ifftn(sp.fft.fftshift(fnew,dims),axes=dims,workers=-1, overwrite_x=True),dims)
+    return np.real(fnew).astype('float32')*(fnew.size/f.size)
+
+    
+
 
 def _upsample(init):
-    init['u'] = ndimage.zoom(init['u'], 2, order=1)
-    init['psi'] = ndimage.zoom(init['psi'], (1, 2, 2), order=1)
-    init['h0'] = ndimage.zoom(init['h0'], (1, 2, 2), order=1)
-    init['lamd'] = ndimage.zoom(init['lamd'], (1, 2, 2), order=1)
-    init['flow'] = ndimage.zoom(init['flow'], (1, 2, 2, 1), order=1)*2
+    # init['u'] = ndimage.zoom(init['u'], 2, order=1)
+    # init['psi'] = ndimage.zoom(init['psi'], (1, 2, 2), order=1)
+    # init['h0'] = ndimage.zoom(init['h0'], (1, 2, 2), order=1)
+    # init['lamd'] = ndimage.zoom(init['lamd'], (1, 2, 2), order=1)
+    # init['flow'] = ndimage.zoom(init['flow'], (1, 2, 2, 1), order=1)*2
+    init['u'] = _fftupsample(init['u'], [0,1,2])
+    init['psi'] = _fftupsample(init['psi'], [1, 2])
+    init['h0'] = _fftupsample(init['h0'], [1, 2])
+    init['lamd'] = _fftupsample(init['lamd'], [1, 2])
+    init['flow'] = _fftupsample(init['flow'], [1, 2])*2
+
     return init
+
 
 
 def _upsample_reg(init):
-    init['u'] = ndimage.zoom(init['u'], 2, order=1)
-    init['psi1'] = ndimage.zoom(init['psi1'], (1, 2, 2), order=1)
-    init['psi2'] = ndimage.zoom(init['psi2'], (1, 2, 2, 2), order=1)
+    # init['u'] = ndimage.zoom(init['u'], 2, order=1)
+    # init['psi1'] = ndimage.zoom(init['psi1'], (1, 2, 2), order=1)
+    # init['psi2'] = ndimage.zoom(init['psi2'], (1, 2, 2, 2), order=1)
 
-    init['h01'] = ndimage.zoom(init['h01'], (1, 2, 2), order=1)
-    init['h02'] = ndimage.zoom(init['h02'], (1, 2, 2, 2), order=1)
+    # init['h01'] = ndimage.zoom(init['h01'], (1, 2, 2), order=1)
+    # init['h02'] = ndimage.zoom(init['h02'], (1, 2, 2, 2), order=1)
 
-    init['lamd1'] = ndimage.zoom(init['lamd1'], (1, 2, 2), order=1)
-    init['lamd2'] = ndimage.zoom(init['lamd2'], (1, 2, 2, 2), order=1)
+    # init['lamd1'] = ndimage.zoom(init['lamd1'], (1, 2, 2), order=1)
+    # init['lamd2'] = ndimage.zoom(init['lamd2'], (1, 2, 2, 2), order=1)
 
-    init['flow'] = ndimage.zoom(init['flow'], (1, 2, 2, 1), order=1)*2
+    # init['flow'] = ndimage.zoom(init['flow'], (1, 2, 2, 1), order=1)*2
+    init['u'] = _fftupsample(init['u'], [0,1,2])
+    init['psi1'] = _fftupsample(init['psi1'], [1, 2])
+    init['psi2'] = _fftupsample(init['psi2'], [1, 2, 3])
+    
+    init['h01'] = _fftupsample(init['h01'], [1, 2])
+    init['h02'] = _fftupsample(init['h02'], [1, 2, 3])
+    
+    init['lamd1'] = _fftupsample(init['lamd1'], [1, 2])
+    init['lamd2'] = _fftupsample(init['lamd2'], [1,2,3])
+    
+    init['flow'] = _fftupsample(init['flow'], [1, 2])*2
+
+    # print(init['u'].shape,np.linalg.norm(init['u']))
+    # print(init['psi1'].shape,np.linalg.norm(init['psi1']))
+    # print(init['psi2'].shape,np.linalg.norm(init['psi2']))
+    # print(init['h01'].shape,np.linalg.norm(init['h01']))
+    # print(init['h02'].shape,np.linalg.norm(init['h02']))
+    # print(init['lamd1'].shape,np.linalg.norm(init['lamd1']))
+    # print(init['lamd2'].shape,np.linalg.norm(init['lamd2']))
+    
     return init
 
+def _take_psize(n):
+    s = bin(int(3*n//2)) 
+    s = s[:5]+s[5:].replace('1','0')
+    ne = int(s,2)
+    # print(ne)
+    return ne
 
-def admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin):
+def admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, fname):
     res = None
     levels = len(niter)
     for k in np.arange(0, levels):
         databin = _downsample(data, levels-k-1)
-        print(databin.shape)
+        dxchange.write_tiff_stack(databin,fname+'/data'+str(k)+'/d',overwrite=True)
+       
         res = admm_of(databin, theta, int(pnz/pow(2, levels-k-1)), ptheta, center/pow(
-            2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res)
+            2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
         if(k < levels-1):
             res = _upsample(res)
 
     return res
 
 
-def admm_of_reg_levels(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin, stepwin):
+def admm_of_reg_levels(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin, stepwin, fname):
     res = None
     levels = len(niter)
     for k in np.arange(0, levels):
         databin = _downsample(data, levels-k-1)
         res = admm_of_reg(databin, theta, int(pnz/pow(2, levels-k-1)), ptheta, center/pow(
-            2, levels-k-1), alpha/pow(2,levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res)
+            2, levels-k-1), alpha/pow(2,levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
         if(k < levels-1):
             res = _upsample_reg(res)
 
