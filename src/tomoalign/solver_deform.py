@@ -7,7 +7,8 @@ import cupy as cp
 import matplotlib.pyplot as plt
 from .deform import deform
 from .flowvis import flow_to_color
-
+import matplotlib
+matplotlib.use('Agg')
 
 class SolverDeform(deform):
     """Base class for deformation solvers.
@@ -82,10 +83,11 @@ class SolverDeform(deform):
                           mmax, flow, pars), range(0, psi.shape[0]))
 
         # control Farneback's (may diverge for small window sizes)
-        err = np.linalg.norm(g-self.apply_flow_gpu_batch(psi, flow0))
-        err1 = np.linalg.norm(g-self.apply_flow_gpu_batch(psi, flow))
-        if(err1 > err):  # use new flow or not
-            flow = flow0
+        err = np.linalg.norm(g-self.apply_flow_gpu_batch(psi, flow0),axis=(1,2))
+        err1 = np.linalg.norm(g-self.apply_flow_gpu_batch(psi, flow),axis=(1,2))
+        idsbad = np.where(err1>err)[0]
+        # print('bad alignment for:',len(idsbad))
+        flow[idsbad] = flow0[idsbad]
 
         return flow
 

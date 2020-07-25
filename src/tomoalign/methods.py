@@ -90,7 +90,8 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                 h = unpaddata(tslv.fwd_tomo_batch(u), ne, n)
                 # 3. dual update
                 lamd = lamd+rho*(h-psi)
-
+                
+                    
                 if(np.mod(k, 4) == 0):  # check Lagrangian, save current iteration results
                     Dpsi = dslv.apply_flow_gpu_batch(psi, flow)
                     lagr[k, 0] = 0.5*np.linalg.norm(Dpsi-data)**2
@@ -98,16 +99,16 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                     lagr[k, 2] = 0.5*rho*np.linalg.norm(h-psi)**2
                     lagr[k, 2] = 0.5*rho*np.linalg.norm(h-psi)**2
                     lagr[k, 3] = np.sum(lagr[k, 0:3])
-                    print("iter %d, wsize %d, rho %.2f, Lagrangian %.4e %.4e %.4e Total %.4e " % (
-                        k, pars[2], rho, *lagr[k]))
+                    print("iter %d, %.2f wsize %d, rho %.2f, Lagrangian %.4e %.4e %.4e Total %.4e " % (
+                        k, np.linalg.norm(flow), pars[2], rho, *lagr[k]))
                     sys.stdout.flush()
                     # save object
                     dxchange.write_tiff(unpadobject(
                         u, ne, n),  fname+'/data/of_recon/recon/iter'+str(k), overwrite=True)
                     # save flow figure
-                    dslv.flowplot(
-                        u, psi, flow, fname+'/data/of_recon/flow_iter'+str(k))
-
+                    np.save(fname+'/data/of_recon/flow'+str(k), flow)
+                dslv.flowplot(
+                      u, psi, flow, fname+'/data/of_recon/flow_iter'+str(k))
                 # update rho
                 rho = _update_penalty(psi, h, h0, rho)
                 h0 = h
@@ -194,15 +195,15 @@ def admm_of_reg(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin,
                     lagr[k, 3] = 0.5*rho2*np.linalg.norm(h2-psi2)**2
                     lagr[k, 4] = np.sum(np.sqrt(np.sum(psi2**2, 0)))
                     lagr[k, 5] = np.sum(lagr[k, 0:5])
-                    print("iter %d, wsize %d, rho (%.2f,%.2f), Lagrangian terms %.4e %.4e %.4e %.4e %.4e Total %.4e " % (
-                        k, pars[2], rho1, rho2, *lagr[k]))
+                    print("iter %d, flow %.2f wsize %d, rho (%.2f,%.2f), Lagrangian terms %.4e %.4e %.4e %.4e %.4e Total %.4e " % (
+                        k, np.linalg.norm(flow),pars[2], rho1, rho2, *lagr[k]))
                     sys.stdout.flush()
                     # save object
                     dxchange.write_tiff(unpadobject(
                         u, ne, n),  fname+'/data/of_recon_reg/recon/iter'+str(k), overwrite=True)
                     # save flow figure
                     dslv.flowplot(
-                        u, psi1, flow, fname+'/data/of_recon_reg/flowiter'+str(k))
+                       u, psi1, flow, fname+'/data/of_recon_reg/flowiter'+str(k))
                     
                 # update rho
                 rho1 = _update_penalty(psi1, h1, h01, rho1)
@@ -213,6 +214,7 @@ def admm_of_reg(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin,
 
                 if(pars[2] > 12):  # limit optical flow window size
                     pars[2] -= stepwin
+
     res['u'] = u
     res['psi1'] = psi1
     res['psi2'] = psi2
@@ -263,28 +265,19 @@ def _upsample(init):
     # init['h0'] = ndimage.zoom(init['h0'], (1, 2, 2), order=1)
     # init['lamd'] = ndimage.zoom(init['lamd'], (1, 2, 2), order=1)
     # init['flow'] = ndimage.zoom(init['flow'], (1, 2, 2, 1), order=1)*2
+    
     init['u'] = _fftupsample(init['u'], [0,1,2])
     init['psi'] = _fftupsample(init['psi'], [1, 2])
     init['h0'] = _fftupsample(init['h0'], [1, 2])
     init['lamd'] = _fftupsample(init['lamd'], [1, 2])
     init['flow'] = _fftupsample(init['flow'], [1, 2])*2
-
+    
     return init
 
 
 
 def _upsample_reg(init):
-    # init['u'] = ndimage.zoom(init['u'], 2, order=1)
-    # init['psi1'] = ndimage.zoom(init['psi1'], (1, 2, 2), order=1)
-    # init['psi2'] = ndimage.zoom(init['psi2'], (1, 2, 2, 2), order=1)
-
-    # init['h01'] = ndimage.zoom(init['h01'], (1, 2, 2), order=1)
-    # init['h02'] = ndimage.zoom(init['h02'], (1, 2, 2, 2), order=1)
-
-    # init['lamd1'] = ndimage.zoom(init['lamd1'], (1, 2, 2), order=1)
-    # init['lamd2'] = ndimage.zoom(init['lamd2'], (1, 2, 2, 2), order=1)
-
-    # init['flow'] = ndimage.zoom(init['flow'], (1, 2, 2, 1), order=1)*2
+  
     init['u'] = _fftupsample(init['u'], [0,1,2])
     init['psi1'] = _fftupsample(init['psi1'], [1, 2])
     init['psi2'] = _fftupsample(init['psi2'], [1, 2, 3])
@@ -297,21 +290,13 @@ def _upsample_reg(init):
     
     init['flow'] = _fftupsample(init['flow'], [1, 2])*2
 
-    # print(init['u'].shape,np.linalg.norm(init['u']))
-    # print(init['psi1'].shape,np.linalg.norm(init['psi1']))
-    # print(init['psi2'].shape,np.linalg.norm(init['psi2']))
-    # print(init['h01'].shape,np.linalg.norm(init['h01']))
-    # print(init['h02'].shape,np.linalg.norm(init['h02']))
-    # print(init['lamd1'].shape,np.linalg.norm(init['lamd1']))
-    # print(init['lamd2'].shape,np.linalg.norm(init['lamd2']))
     
     return init
 
 def _take_psize(n):
     s = bin(int(3*n//2)) 
     s = s[:5]+s[5:].replace('1','0')
-    ne = int(s,2)
-    # print(ne)
+    ne = int(s,2)    
     return ne
 
 def admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, fname):

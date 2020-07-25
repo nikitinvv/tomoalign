@@ -137,3 +137,11 @@ def gen_cyl_data(n, ntheta, pprot, adef, noise=False):
     np.save('data/theta'+namepart, theta)
     
     print('generated data have been written in data/')
+
+def gen_data(f, theta):
+    n = f.shape[2]
+    ne=n
+    with SolverTomo(theta, len(theta), 1, ne, 1, n/2+(ne-n)/2, 1) as tslv:
+        data = tslv.fwd_tomo_batch(f)
+    return data
+
