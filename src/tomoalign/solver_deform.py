@@ -86,7 +86,7 @@ class SolverDeform(deform):
         err = np.linalg.norm(g-self.apply_flow_gpu_batch(psi, flow0),axis=(1,2))
         err1 = np.linalg.norm(g-self.apply_flow_gpu_batch(psi, flow),axis=(1,2))
         idsbad = np.where(err1>err)[0]
-        # print('bad alignment for:',len(idsbad))
+        print('bad alignment for:',len(idsbad))
         flow[idsbad] = flow0[idsbad]
 
         return flow

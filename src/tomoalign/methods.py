@@ -9,6 +9,7 @@ import dxchange
 import sys
 import scipy as sp
 
+
 def prealign(data, pprot):
     """prealign projections by optical flow according to adjacent interlaced angles"""
 
@@ -31,7 +32,7 @@ def pcg(data, theta, pprot, pnz, center, ngpus, niter):
     """Reconstruct with the _prealigned CG (pCG)"""
 
     [ntheta, nz, n] = data.shape
-    ne = _take_psize(n)    
+    ne = _take_psize(n)
     u = np.zeros([nz, ne, ne], dtype='float32')
     # tomographic solver on GPU
     with SolverTomo(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus) as tslv:
@@ -46,7 +47,7 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
     [ntheta, nz, n] = data.shape
     # tomographic solver on GPU
     ne = _take_psize(n)
-    
+
     with SolverTomo(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus) as tslv:
         # alignment solver on GPU
         with SolverDeform(ntheta, nz, n, ptheta, ngpus) as dslv:
@@ -90,8 +91,7 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                 h = unpaddata(tslv.fwd_tomo_batch(u), ne, n)
                 # 3. dual update
                 lamd = lamd+rho*(h-psi)
-                
-                    
+
                 if(np.mod(k, 4) == 0):  # check Lagrangian, save current iteration results
                     Dpsi = dslv.apply_flow_gpu_batch(psi, flow)
                     lagr[k, 0] = 0.5*np.linalg.norm(Dpsi-data)**2
@@ -108,7 +108,7 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                     # save flow figure
                     np.save(fname+'/data/of_recon/flow'+str(k), flow)
                 dslv.flowplot(
-                      u, psi, flow, fname+'/data/of_recon/flow_iter'+str(k))
+                    u, psi, flow, fname+'/data/of_recon/flow_iter'+str(k))
                 # update rho
                 rho = _update_penalty(psi, h, h0, rho)
                 h0 = h
@@ -196,15 +196,15 @@ def admm_of_reg(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin,
                     lagr[k, 4] = np.sum(np.sqrt(np.sum(psi2**2, 0)))
                     lagr[k, 5] = np.sum(lagr[k, 0:5])
                     print("iter %d, flow %.2f wsize %d, rho (%.2f,%.2f), Lagrangian terms %.4e %.4e %.4e %.4e %.4e Total %.4e " % (
-                        k, np.linalg.norm(flow),pars[2], rho1, rho2, *lagr[k]))
+                        k, np.linalg.norm(flow), pars[2], rho1, rho2, *lagr[k]))
                     sys.stdout.flush()
                     # save object
                     dxchange.write_tiff(unpadobject(
                         u, ne, n),  fname+'/data/of_recon_reg/recon/iter'+str(k), overwrite=True)
                     # save flow figure
                     dslv.flowplot(
-                       u, psi1, flow, fname+'/data/of_recon_reg/flowiter'+str(k))
-                    
+                        u, psi1, flow, fname+'/data/of_recon_reg/flowiter'+str(k))
+
                 # update rho
                 rho1 = _update_penalty(psi1, h1, h01, rho1)
                 rho2 = _update_penalty(psi2, h2, h02, rho2)
@@ -246,17 +246,18 @@ def _downsample(data, binning):
         res = 0.5*(res[:, :, ::2]+res[:, :, 1::2])
     return res
 
-def _fftupsample(f,dims):
-    paddim = np.zeros([np.ndim(f),2],dtype='int32')
-    dims = np.asarray(dims).astype('int32')
-    paddim[dims,0] = np.asarray(f.shape)[dims]//2
-    paddim[dims,1] = np.asarray(f.shape)[dims]//2 
-    fnew = sp.fft.ifftshift(sp.fft.fftn(sp.fft.fftshift(f,dims),axes=dims,workers=-1, overwrite_x=True),dims)    
-    fnew = np.pad(fnew,paddim)
-    fnew = sp.fft.ifftshift(sp.fft.ifftn(sp.fft.fftshift(fnew,dims),axes=dims,workers=-1, overwrite_x=True),dims)
-    return np.real(fnew).astype('float32')*(fnew.size/f.size)
 
-    
+def _fftupsample(f, dims):
+    paddim = np.zeros([np.ndim(f), 2], dtype='int32')
+    dims = np.asarray(dims).astype('int32')
+    paddim[dims, 0] = np.asarray(f.shape)[dims]//2
+    paddim[dims, 1] = np.asarray(f.shape)[dims]//2
+    fnew = sp.fft.ifftshift(sp.fft.fftn(sp.fft.fftshift(
+        f, dims), axes=dims, workers=-1, overwrite_x=True), dims)
+    fnew = np.pad(fnew, paddim)
+    fnew = sp.fft.ifftshift(sp.fft.ifftn(sp.fft.fftshift(
+        fnew, dims), axes=dims, workers=-1, overwrite_x=True), dims)
+    return np.real(fnew).astype('float32')*(fnew.size/f.size)
 
 
 def _upsample(init):
@@ -265,47 +266,47 @@ def _upsample(init):
     # init['h0'] = ndimage.zoom(init['h0'], (1, 2, 2), order=1)
     # init['lamd'] = ndimage.zoom(init['lamd'], (1, 2, 2), order=1)
     # init['flow'] = ndimage.zoom(init['flow'], (1, 2, 2, 1), order=1)*2
-    
-    init['u'] = _fftupsample(init['u'], [0,1,2])
+
+    init['u'] = _fftupsample(init['u'], [0, 1, 2])
     init['psi'] = _fftupsample(init['psi'], [1, 2])
     init['h0'] = _fftupsample(init['h0'], [1, 2])
     init['lamd'] = _fftupsample(init['lamd'], [1, 2])
     init['flow'] = _fftupsample(init['flow'], [1, 2])*2
-    
-    return init
 
+    return init
 
 
 def _upsample_reg(init):
-  
-    init['u'] = _fftupsample(init['u'], [0,1,2])
+
+    init['u'] = _fftupsample(init['u'], [0, 1, 2])
     init['psi1'] = _fftupsample(init['psi1'], [1, 2])
     init['psi2'] = _fftupsample(init['psi2'], [1, 2, 3])
-    
+
     init['h01'] = _fftupsample(init['h01'], [1, 2])
     init['h02'] = _fftupsample(init['h02'], [1, 2, 3])
-    
+
     init['lamd1'] = _fftupsample(init['lamd1'], [1, 2])
-    init['lamd2'] = _fftupsample(init['lamd2'], [1,2,3])
-    
+    init['lamd2'] = _fftupsample(init['lamd2'], [1, 2, 3])
+
     init['flow'] = _fftupsample(init['flow'], [1, 2])*2
 
-    
     return init
 
+
 def _take_psize(n):
-    s = bin(int(3*n//2)) 
-    s = s[:5]+s[5:].replace('1','0')
-    ne = int(s,2)    
+    s = bin(int(3*n//2))
+    s = s[:4]+s[4:].replace('1', '0')
+    ne = int(s, 2)
+    #ne=n
+    print('padded size', ne)
     return ne
+
 
 def admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, fname):
     res = None
     levels = len(niter)
     for k in np.arange(0, levels):
         databin = _downsample(data, levels-k-1)
-        dxchange.write_tiff_stack(databin,fname+'/data'+str(k)+'/d',overwrite=True)
-       
         res = admm_of(databin, theta, int(pnz/pow(2, levels-k-1)), ptheta, center/pow(
             2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
         if(k < levels-1):
@@ -320,7 +321,7 @@ def admm_of_reg_levels(data, theta, pnz, ptheta, center, alpha, ngpus, niter, st
     for k in np.arange(0, levels):
         databin = _downsample(data, levels-k-1)
         res = admm_of_reg(databin, theta, int(pnz/pow(2, levels-k-1)), ptheta, center/pow(
-            2, levels-k-1), alpha/pow(2,levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
+            2, levels-k-1), alpha/pow(2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
         if(k < levels-1):
             res = _upsample_reg(res)
 
