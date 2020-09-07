@@ -50,12 +50,12 @@ class SolverTomo(radonusfft):
         self.fwd(res.data.ptr, u0.data.ptr, gpu)        
         return res.real
 
-    def adj_tomo(self, data, gpu):
+    def adj_tomo(self, data, gpu, filter=False):
         """Adjoint Radon transform (R^*)"""
         res = cp.zeros([self.pnz, self.n, self.n], dtype='complex64')
         data0 = data.astype('complex64')
         # C++ wrapper, send pointers to GPU arrays        
-        self.adj(res.data.ptr, data0.data.ptr, gpu)
+        self.adj(res.data.ptr, data0.data.ptr, gpu, filter)
         return res.real
 
     def line_search(self, minf, gamma, Ru, Rd):
@@ -268,3 +268,43 @@ class SolverTomo(radonusfft):
         cp.cuda.Device(0).use()        
         return u
 
+    def inv_tomo_batch(self, xi0, init, titer, dbg=False):
+        """FBP solver by z-slice partitions"""
+        u = init.copy()
+        ids_list = [None]*int(np.ceil(self.nz/float(self.pnz)))
+        for k in range(0, len(ids_list)):
+            ids_list[k] = range(k*self.pnz, min(self.nz, (k+1)*self.pnz))
+        
+        lock = threading.Lock()
+        global BUSYGPUS
+        BUSYGPUS = np.zeros(self.ngpus)
+        with cf.ThreadPoolExecutor(self.ngpus) as e:
+            shift = 0
+            for ui in e.map(partial(self.inv_tomo_multi_gpu, xi0, u, titer, lock), ids_list):
+                u[np.arange(0, ui.shape[0])+shift] = ui
+                shift += ui.shape[0]
+        cp.cuda.Device(0).use()        
+        return u
+
+    def inv_tomo_multi_gpu(self,xi0,u,titer,lock,ids):
+        """Pick GPU, copy data, run reconstruction"""
+        global BUSYGPUS
+        lock.acquire()  # will block if lock is already held
+        for k in range(self.ngpus):
+            if BUSYGPUS[k] == 0:
+                BUSYGPUS[k] = 1
+                gpu = k
+                break
+        lock.release()
+
+        cp.cuda.Device(gpu).use()
+        u_gpu = cp.array(u[ids])
+        xi0_gpu = cp.array(xi0[:, ids])
+        # reconstruct
+        u_gpu = self.adj_tomo(xi0_gpu, gpu, True)
+        u[ids] = u_gpu.get()
+
+        BUSYGPUS[gpu] = 0
+
+        return u[ids]
+    

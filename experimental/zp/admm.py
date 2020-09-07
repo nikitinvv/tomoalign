@@ -4,16 +4,19 @@ import sys
 import tomoalign
 import scipy.ndimage as ndimage
 centers = {
-    '/local/data/vnikitin/ZP/Kenan_ZP_9100eV_interlaced_-14to16deg_3s_090': 1224,#1277,
+    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/DeAndrade/16nmZP/Kenan_ZP_8keV_interlaced_5000prj_3s_001': 1200,#1277,
+    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/DeAndrade/16nmZP/Kenan_ZP_ROI2_8keV_interlaced_5000prj_3s_002': 1250,
+    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/DeAndrade/16nmZP/Kenan_ZP_ROI3_8keV_interlaced_5000prj_2s_003': 1200,
 }
 
 if __name__ == "__main__":
 
-    ndsets = 6
-    nth = 120
-    fname = '/local/data/vnikitin/ZP/Kenan_ZP_9100eV_interlaced_-14to16deg_3s_090'
-    
-    binning = 1
+    ndsets = np.int(sys.argv[1])
+    nth = np.int(sys.argv[2])
+    fname = sys.argv[3]
+    part = int(sys.argv[4])
+    mrange = int(sys.argv[5])
+    binning = 0
     data = np.zeros([ndsets*nth, 2048//pow(2, binning),
                      2448//pow(2, binning)], dtype='float32')
     theta = np.zeros(ndsets*nth, dtype='float32')
@@ -23,27 +26,33 @@ if __name__ == "__main__":
         theta[k*nth:(k+1)*nth] = np.load(fname+'_theta' +
                                          str(k)+'.npy').astype('float32')
     data[np.isnan(data)] = 0    
-    data-=np.mean(data)
-    ngpus = 8
+    data=data[:,256:-256,456:-456]
+    # w = np.linspace(0,np.pi/2,256)
+    # data[:,:,:256]*=np.sin(w)
+    # data[:,:,-256:]*=np.cos(w)
+    dxchange.write_tiff_stack(data,fname+'/data/d')
+    
+    #data-=np.mean(data)
+    ngpus = 4
     pnz = 4
     ptheta = 10
-    niteradmm = [48]  # number of iterations in the ADMM scheme
+    niteradmm = [96,48,24]  # number of iterations in the ADMM scheme
     # starting window size in optical flow estimation
-    startwin = [512]
+    startwin = [512,256,128]
     # step for decreasing the window size in optical flow estimtion
-    stepwin = [8,8,8]
-    center = (centers[fname])/pow(2, binning)
+    stepwin = [4,4,4]
+    center = (centers[fname]-200-256)/pow(2, binning)
 
 
 
 
-    fname += '/densenew1224'+'_'+str(binning)+'p2'
+    fname += '/dense'+'_'+str(binning)+str(part)
     
-    data3 = np.ascontiguousarray(data[1::2].astype('float32'))
-    theta3 = np.ascontiguousarray(theta[1::2].astype('float32'))
+    data = np.ascontiguousarray(data[part::2].astype('float32'))
+    theta = np.ascontiguousarray(theta[part::2].astype('float32'))
     
     res = tomoalign.admm_of_levels(
-        data3, theta3, pnz, ptheta, center, ngpus, niteradmm, startwin, stepwin, fname)
+        data, theta, pnz, ptheta, center, ngpus, niteradmm, startwin, stepwin, fname)
     
     dxchange.write_tiff_stack(
         res['u'].swapaxes(0,1), fname+'/results_admm/u/r', overwrite=True)

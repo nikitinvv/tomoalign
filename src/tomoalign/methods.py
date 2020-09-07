@@ -41,6 +41,18 @@ def pcg(data, theta, pprot, pnz, center, ngpus, niter):
     res = {'u': u}
     return res
 
+def pinv(data, theta, pprot, pnz, center, ngpus, niter):
+    """Reconstruct with the _prealigned CG (pCG)"""
+
+    [ntheta, nz, n] = data.shape
+    ne = _take_psize(n)
+    u = np.zeros([nz, ne, ne], dtype='float32')
+    # tomographic solver on GPU
+    with SolverTomo(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus) as tslv:
+        u = unpadobject(tslv.inv_tomo_batch(
+            paddata(prealign(data, pprot), ne, n), u, niter), ne, n)
+    res = {'u': u}
+    return res
 
 def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, res=None, fname='', titer=4):
     """Reconstruct with the optical flow method (OF)"""
@@ -103,7 +115,7 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                         k, np.linalg.norm(flow), pars[2], rho, *lagr[k]))
                     sys.stdout.flush()
                     # save object
-                    dxchange.write_tiff(unpadobject(
+                    dxchange.write_tiff_stack(unpadobject(
                         u, ne, n),  fname+'/data/of_recon/recon/iter'+str(k), overwrite=True)
                     # save flow figure
                     np.save(fname+'/data/of_recon/flow'+str(k), flow)
@@ -252,12 +264,13 @@ def _fftupsample(f, dims):
     dims = np.asarray(dims).astype('int32')
     paddim[dims, 0] = np.asarray(f.shape)[dims]//2
     paddim[dims, 1] = np.asarray(f.shape)[dims]//2
-    fnew = sp.fft.ifftshift(sp.fft.fftn(sp.fft.fftshift(
+    fsize = f.size
+    f = sp.fft.ifftshift(sp.fft.fftn(sp.fft.fftshift(
         f, dims), axes=dims, workers=-1, overwrite_x=True), dims)
-    fnew = np.pad(fnew, paddim)
-    fnew = sp.fft.ifftshift(sp.fft.ifftn(sp.fft.fftshift(
-        fnew, dims), axes=dims, workers=-1, overwrite_x=True), dims)
-    return np.real(fnew).astype('float32')*(fnew.size/f.size)
+    f = np.pad(f, paddim)
+    f = sp.fft.ifftshift(sp.fft.ifftn(sp.fft.fftshift(
+        f, dims), axes=dims, workers=-1, overwrite_x=True), dims)
+    return f.real.astype('float32')*(f.size/fsize)
 
 
 def _upsample(init):
@@ -295,9 +308,13 @@ def _upsample_reg(init):
 
 def _take_psize(n):
     s = bin(int(3*n//2))
-    s = s[:4]+s[4:].replace('1', '0')
+    s = s[:5]+s[5:].replace('1', '0')
     ne = int(s, 2)
-    #ne=n
+    # s = bin(int(3*n//2))
+    # s = s[:5]+s[5:].replace('1', '0')
+    # ne = int(s, 2)
+    
+    # ne=n
     print('padded size', ne)
     return ne
 
@@ -307,8 +324,11 @@ def admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niter, startwin, ste
     levels = len(niter)
     for k in np.arange(0, levels):
         databin = _downsample(data, levels-k-1)
-        res = admm_of(databin, theta, int(pnz/pow(2, levels-k-1)), ptheta, center/pow(
+        # res = admm_of(databin, theta, int(pnz/pow(2, levels-k-1)), ptheta, center/pow(
+            # 2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
+        res = admm_of(databin, theta, int(np.ceil(pnz/pow(2, levels-k-1))), ptheta, center/pow(
             2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
+        
         if(k < levels-1):
             res = _upsample(res)
 

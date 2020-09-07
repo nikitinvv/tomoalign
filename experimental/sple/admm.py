@@ -3,20 +3,21 @@ import numpy as np
 import sys
 import tomoalign
 import scipy.ndimage as ndimage
-centers = {
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Wolfman/LMR-NMC_925C_8600eV_Interlaced_1201prj_082' : 1197,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Wolfman/LMR-NMC_925C_8600eV_Interlaced_1201prj_087' : 1197,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Wolfman/LMR-NMC_950C_8600eV_Interlaced_1201prj_097' : 1197,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Wolfman/LMR-NMC_950C_8600eV_Interlaced_1201prj_107' : 1197,
-}
 
+centers = {
+    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Myers/Sple1_Phase_1201prj_interlaced_1s_010': 1227,
+    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Myers/Sple2_Phase_1201prj_interlaced_1s_011': 1237,
+    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Myers/Sple3_Phase_1201prj_1s_009': 1217,
+    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Myers/Sple4_Phase_1201prj_interlaced_1s_012': 1183,
+    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Myers/Sple5_Phase_1201prj_interlaced_1s_013': 1202,
+}
 
 if __name__ == "__main__":
 
     ndsets = np.int(sys.argv[1])
     nth = np.int(sys.argv[2])
     fname = sys.argv[3]
-
+    
     binning = 1
     data = np.zeros([ndsets*nth, 2048//pow(2, binning),
                      2448//pow(2, binning)], dtype='float32')
@@ -27,6 +28,7 @@ if __name__ == "__main__":
         theta[k*nth:(k+1)*nth] = np.load(fname+'_theta' +
                                          str(k)+'.npy').astype('float32')
     data[np.isnan(data)] = 0
+    data -= np.mean(data)
     ngpus = 4
     pnz = 4
     ptheta = 10
@@ -37,16 +39,20 @@ if __name__ == "__main__":
     stepwin = [2, 2, 2]
     center = (centers[fname])/pow(2, binning)
 
-    fname += '/dense'+'_'+str(binning)
+
+    fname += '/dense'+'_'+str(binning)+str(center)
 
     data = np.ascontiguousarray(data.astype('float32'))
     theta = np.ascontiguousarray(theta.astype('float32'))
 
+    dxchange.write_tiff_stack(
+        data, fname+'/data/d', overwrite=True)
+    print(len(np.unique(theta)))
     res = tomoalign.admm_of_levels(
         data, theta, pnz, ptheta, center, ngpus, niteradmm, startwin, stepwin, fname)
 
     dxchange.write_tiff_stack(
-        res['u'].swapaxes(0, 1), fname+'/results_admm/u/r', overwrite=True)
+        res['u'], fname+'/results_admm/u/r', overwrite=True)
     dxchange.write_tiff_stack(
         res['psi'], fname+'/results_admm/psi/r', overwrite=True)
     np.save(fname+'/results_admm/flow.npy', res['flow'])

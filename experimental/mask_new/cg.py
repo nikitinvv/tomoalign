@@ -15,7 +15,8 @@ import tomoalign
 #     '/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/PVDF_3h_ROI2_8keV_phase_interlaced_1201prj_0.5s_047_050': 1209,
 # }
 centers = {
-'/local/data/vnikitin/mask/PAN_PI_ROI2_8keV_phase_interlaced_1201prj_0.5s_037' : 1227,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Gould/Fibers_Phase_1201prj_interlaced_1s_015' : 1224,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Gould/Fibers_Lower_part_Phase_1201prj_interlaced_1s_016' : 1224,
 }
 ngpus = 4
 

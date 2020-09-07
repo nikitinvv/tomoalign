@@ -9,7 +9,7 @@ import skimage.feature
 ndsets = np.int(sys.argv[1])
 theta_start = 0
 theta_end = np.int(sys.argv[2])
-name = sys.argv[4][:-3]
+name = sys.argv[4]
 file_name = name+'.h5'
 sino_start = 0
 sino_end = 2048
@@ -48,6 +48,7 @@ if __name__ == "__main__":
         # preprocess
         prj = preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remove_rings,
                             FF_drift_corr=flat_field_drift_corr, downsapling=binning)
+        print(prj.shape)
 
         np.save(name+'_bin'+str(binning)+str(k),prj)        
         np.save(name+'_theta'+str(k),theta)  

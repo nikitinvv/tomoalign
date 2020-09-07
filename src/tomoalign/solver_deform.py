@@ -68,8 +68,14 @@ class SolverDeform(deform):
                 (mmax[id]-mmin[id])*255)
         tmp2[tmp2 > 255] = 255
         tmp2[tmp2 < 0] = 0
-        cv2.calcOpticalFlowFarneback(
+        tmp1=np.uint8(tmp1)
+        tmp2=np.uint8(tmp2)
+        
+        flow[id]=cv2.calcOpticalFlowFarneback(
            tmp1, tmp2, flow[id], *pars)  # updates flow
+        #if(cp.linalg.norm(flow[id])!=0):
+         #    print(np.linalg.norm(flow[id]),cp.linalg.norm(tmp1-tmp2))
+
 
     def registration_flow_batch(self, psi, g, mmin, mmax, flow=None, pars=[0.5, 3, 20, 16, 5, 1.1, 4]):
         """Find optical flow for all projections in parallel"""
@@ -86,6 +92,7 @@ class SolverDeform(deform):
         err = np.linalg.norm(g-self.apply_flow_gpu_batch(psi, flow0),axis=(1,2))
         err1 = np.linalg.norm(g-self.apply_flow_gpu_batch(psi, flow),axis=(1,2))
         idsbad = np.where(err1>err)[0]
+        
         print('bad alignment for:',len(idsbad))
         flow[idsbad] = flow0[idsbad]
 

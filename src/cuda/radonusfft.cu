@@ -3,6 +3,7 @@
 #include "radonusfft.cuh"
 #include "kernels.cu"
 #include "shift.cu"
+#include "filter.cu"
 
 radonusfft::radonusfft(size_t ntheta, size_t pnz, size_t n, float center,
                        size_t theta_, size_t ngpus)
@@ -139,7 +140,7 @@ void radonusfft::fwd(size_t g_, size_t f_, size_t igpu) {
       cudaMemcpy(&g0[i*n*pnz], &g[igpu][i*n*pnz], n * pnz * sizeof(float2), cudaMemcpyDefault);  
 }
 
-void radonusfft::adj(size_t f_, size_t g_, size_t igpu) {
+void radonusfft::adj(size_t f_, size_t g_, size_t igpu, bool filter) {
     cudaSetDevice(igpu);
     float2* g0 = (float2 *)g_;
     for (int i=0;i<ntheta;i++)    
@@ -151,7 +152,8 @@ void radonusfft::adj(size_t f_, size_t g_, size_t igpu) {
     ifftshiftc <<<GS3d3, BS3d>>> (g[igpu], n, ntheta, pnz);
     cufftExecC2C(plan1d[igpu], (cufftComplex *)g[igpu], (cufftComplex *)g[igpu], CUFFT_FORWARD);
     ifftshiftc <<<GS3d3, BS3d>>> (g[igpu], n, ntheta, pnz);
-    // applyfilter<<<GS3d3, BS3d>>>(g,n,ntheta,pnz);
+    if (filter)
+      applyfilter<<<GS3d3, BS3d>>>(g[igpu],n,ntheta,pnz);
     // shift with respect to given center
     shift <<<GS3d3, BS3d>>> (g[igpu], shiftadj[igpu], n, ntheta, pnz);
 

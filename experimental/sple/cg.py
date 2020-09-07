@@ -4,11 +4,13 @@ import sys
 import tomoalign
 
 centers = {
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Wolfman/LMR-NMC_925C_8600eV_Interlaced_1201prj_082' : 1197,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Wolfman/LMR-NMC_925C_8600eV_Interlaced_1201prj_087' : 1197,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Wolfman/LMR-NMC_950C_8600eV_Interlaced_1201prj_097' : 1197,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Wolfman/LMR-NMC_950C_8600eV_Interlaced_1201prj_107' : 1197,
+    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Myers/Sple1_Phase_1201prj_interlaced_1s_010': 1227,
+    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Myers/Sple2_Phase_1201prj_interlaced_1s_011': 1237,
+    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Myers/Sple3_Phase_1201prj_1s_009': 1217,
+    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Myers/Sple4_Phase_1201prj_interlaced_1s_012': 1183,
+    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Myers/Sple5_Phase_1201prj_interlaced_1s_013': 1202,
 }
+ngpus = 4
 
 if __name__ == "__main__":
 
@@ -25,12 +27,15 @@ if __name__ == "__main__":
                                         str(binning)+str(k)+'.npy').astype('float32')
         theta[k*nth:(k+1)*nth] = np.load(fname+'_theta' +
                                          str(k)+'.npy').astype('float32')
-    data[np.isnan(data)] = 0    
+    data[np.isnan(data)] = 0
+    data -= np.mean(data)
+
     ngpus = 4
     pprot = 1200
-    nitercg = 32
+    nitercg = 64
     pnz = 8
-    center = centers[fname]/pow(2,binning)
+    center = (centers[fname])/pow(2, binning)
+
 
     data = np.ascontiguousarray(data)
     theta = np.ascontiguousarray(theta)

@@ -3,13 +3,12 @@ import numpy as np
 import sys
 import tomoalign
 import scipy.ndimage as ndimage
-centers = {
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Wolfman/LMR-NMC_925C_8600eV_Interlaced_1201prj_082' : 1197,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Wolfman/LMR-NMC_925C_8600eV_Interlaced_1201prj_087' : 1197,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Wolfman/LMR-NMC_950C_8600eV_Interlaced_1201prj_097' : 1197,
-'/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/Wolfman/LMR-NMC_950C_8600eV_Interlaced_1201prj_107' : 1197,
-}
 
+centers={
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_721prj_180deg_1s_170': 1211,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167': 1224,
+'/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_4800prj_720deg_166': 1224,
+}
 
 if __name__ == "__main__":
 
@@ -27,6 +26,7 @@ if __name__ == "__main__":
         theta[k*nth:(k+1)*nth] = np.load(fname+'_theta' +
                                          str(k)+'.npy').astype('float32')
     data[np.isnan(data)] = 0
+    data -= np.mean(data)
     ngpus = 4
     pnz = 4
     ptheta = 10
@@ -37,16 +37,24 @@ if __name__ == "__main__":
     stepwin = [2, 2, 2]
     center = (centers[fname])/pow(2, binning)
 
-    fname += '/dense'+'_'+str(binning)
+    fname += '/dense_newcontrolprealign'+'_'+str(binning)
 
     data = np.ascontiguousarray(data.astype('float32'))
     theta = np.ascontiguousarray(theta.astype('float32'))
 
+    dxchange.write_tiff_stack(
+        data, fname+'/data/d', overwrite=True)
+    # print(theta[0:400])
+    # print(theta[400:800])
+    # plt.plot()
+    print(len(np.unique(theta)))
+    pprot = 400
+    # exit()
     res = tomoalign.admm_of_levels(
-        data, theta, pnz, ptheta, center, ngpus, niteradmm, startwin, stepwin, fname)
+        data, theta, pprot, pnz, ptheta, center, ngpus, niteradmm, startwin, stepwin, fname)
 
     dxchange.write_tiff_stack(
-        res['u'].swapaxes(0, 1), fname+'/results_admm/u/r', overwrite=True)
+        res['u'], fname+'/results_admm/u/r', overwrite=True)
     dxchange.write_tiff_stack(
         res['psi'], fname+'/results_admm/psi/r', overwrite=True)
     np.save(fname+'/results_admm/flow.npy', res['flow'])
