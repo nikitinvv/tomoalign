@@ -3,8 +3,8 @@ import numpy as np
 import sys
 import tomoalign
 centers = {
-    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/zp_new/Kenan_ZP_8keV_interlaced_5000prj_3s_001': 1200,#1277,
-    '/data/staff/tomograms/vviknik/tomoalign_vincent_data/2020-07/DeAndrade/16nmZP/Kenan_ZP_ROI3_8keV_interlaced_5000prj_2s_003': 1200,
+    '/local/data/vnikitin/Kenan_ZP_8keV_interlaced_5000prj_3s_001': 1200,#1277,
+    '/local/data/vnikitin/Kenan_ZP_ROI3_8keV_interlaced_5000prj_2s_003': 1200,
 }
 if __name__ == "__main__":
 

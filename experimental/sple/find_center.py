@@ -20,18 +20,6 @@ if __name__ == "__main__":
                                         str(binning)+str(k)+'.npy').astype('float32')[:,1700//pow(2,binning):1700//pow(2,binning)+1]
         theta[k*nth:(k+1)*nth] = np.load(fname+'_theta' +
                                          str(k)+'.npy').astype('float32')
-    print(len(np.unique(theta)))
-    #plt.figure(figsize=(12,12))
-    #plt.plot(np.cos(theta),np.sin(theta),'.',markersize=1)
-    #a=np.sort(theta)
-    #print(np.abs(a[::2]-a[1::2]))
-    #exit()
-    #plt.savefig(fname+'/theta.png',dpi=1200)
-    # plt.show()
-    #exit()
-    # for k in range(12):
-    #     a=(theta[k*100:(k+1)*100])
-    #     print(a[:10],a[-10:])
     
     data[np.isnan(data)] = 0
     #data -= np.mean(data)
