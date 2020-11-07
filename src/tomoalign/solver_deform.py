@@ -245,9 +245,9 @@ class SolverDeform(deform):
         plt.imshow(u[nz//2+nz//8], cmap='gray')
 
         plt.subplot(3, 4, 11)
-        plt.imshow(u[:, n//2], cmap='gray')
+        plt.imshow(u[:, n//2-35], cmap='gray')
 
         plt.subplot(3, 4, 12)
-        plt.imshow(u[:, :, n//2], cmap='gray')
+        plt.imshow(u[:, :, n//2-35], cmap='gray')
         plt.savefig(fname)
         plt.close()

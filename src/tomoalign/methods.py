@@ -117,6 +117,7 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                     # save object
                     dxchange.write_tiff_stack(unpadobject(
                         u, ne, n),  fname+'/data/of_recon/recon/iter'+str(k), overwrite=True)
+                    dxchange.write_tiff_stack(psi,  fname+'/data/of_recon/psi/iter'+str(k), overwrite=True)
                     # save flow figure
                     np.save(fname+'/data/of_recon/flow'+str(k), flow)
                 dslv.flowplot(
@@ -314,7 +315,7 @@ def _take_psize(n):
     # s = s[:5]+s[5:].replace('1', '0')
     # ne = int(s, 2)
     
-    # ne=n
+    ne=n
     print('padded size', ne)
     return ne
 

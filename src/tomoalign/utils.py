@@ -24,7 +24,9 @@ def find_min_max(data):
         end = stend[0][-1]        
         mmin[k] = e[st]
         mmax[k] = e[end+1]
-     
+        # mmin[k] = np.min(data[k])
+        # mmax[k] = np.max(data[k])
+    #print(mmin,mmax)
     return mmin,mmax
 
 def paddata(data,ne,n):
