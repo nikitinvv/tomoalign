@@ -9,7 +9,7 @@ import matplotlib
 import gc
 import scipy.ndimage as ndimage
 import cv2
-from flowvis import *
+# from flowvis import *
 
 plt.rc('text', usetex=True)
 matplotlib.rc('font', family='serif', serif='cm10')
@@ -37,37 +37,66 @@ matplotlib.rcParams['text.latex.preamble'] = [r'\boldmath']
 #     dxchange.write_tiff(data[k*100], '/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/proj/r/r_0000'+str(k),overwrite=True)
 # exit()    
 
-u = dxchange.read_tiff_stack('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/results_admm/u/r_00000.tiff',ind=np.arange(0,1024))
-ucg = dxchange.read_tiff_stack('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/results_cg/u/r_00000.tiff',ind=np.arange(0,1024))
-un = dxchange.read_tiff_stack('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/results_admm_reg3e-06/u/r_00000.tiff',ind=np.arange(0,1024))
+# u = dxchange.read_tiff_stack('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/results_admm/u/r_00000.tiff',ind=np.arange(0,1024))
+# ucg = dxchange.read_tiff_stack('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/results_cg/u/r_00000.tiff',ind=np.arange(0,1024))
+# ucgn = dxchange.read_tiff_stack('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/revision_cg_nop_1/results/u/r_00000.tiff',ind=np.arange(0,1024))
+# un = dxchange.read_tiff_stack('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/results_admm_reg3e-06/u/r_00000.tiff',ind=np.arange(0,1024))
+upsi3 = dxchange.read_tiff_stack('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/c2_4_64_80_60_4_FBP_full/tomo_delta__ram-lak_freqscl_1.00_0001.tif',ind=np.arange(1,1025))
+#upsi7 = dxchange.read_tiff_stack('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/c7_4_64_80_60_4_SART_full/tomo_delta__ram-lak_freqscl_1.00_0001.tif',ind=np.arange(1,1025))
 
-u=  u[:,u.shape[1]//2-612:u.shape[1]//2+612,u.shape[2]//2-612:u.shape[2]//2+612]
-un=un[:,un.shape[1]//2-612:un.shape[1]//2+612,un.shape[2]//2-612:un.shape[2]//2+612]
+# u=  u[:,u.shape[1]//2-612:u.shape[1]//2+612,u.shape[2]//2-612:u.shape[2]//2+612]
+# un=un[:,un.shape[1]//2-612:un.shape[1]//2+612,un.shape[2]//2-612:un.shape[2]//2+612]
+upsi3=upsi3[:,upsi3.shape[1]//2-612:upsi3.shape[1]//2+612,upsi3.shape[2]//2-612:upsi3.shape[2]//2+612]
 
-vmin=-0.0018
-vmax=0.0018
-a=u[u.shape[0]//2];a[0]=vmin;a[1]=vmax
-plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/uz.png',a,vmin=vmin,vmax=vmax,cmap='gray')
-a=u[:,u.shape[1]//2];a[0]=vmin;a[1]=vmax
-plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/uy.png',a,vmin=vmin,vmax=vmax,cmap='gray')
-a=u[:,:,u.shape[2]//2];a[0]=vmin;a[1]=vmax
-plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/ux.png',a,vmin=vmin,vmax=vmax,cmap='gray')
-# u=[]
+# vmin=-0.0018
+# vmax=0.0018
+# a=u[u.shape[0]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/uz.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+# a=u[:,u.shape[1]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/uy.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+# a=u[:,:,u.shape[2]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/ux.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+# # u=[]
 
-a=ucg[ucg.shape[0]//2];a[0]=vmin;a[1]=vmax
-plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/ucgz.png',a,vmin=vmin,vmax=vmax,cmap='gray')
-a=ucg[:,ucg.shape[1]//2];a[0]=vmin;a[1]=vmax
-plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/ucgy.png',a,vmin=vmin,vmax=vmax,cmap='gray')
-a=ucg[:,:,ucg.shape[2]//2];a[0]=vmin;a[1]=vmax
-plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/ucgx.png',a,vmin=vmin,vmax=vmax,cmap='gray')
-# ucg=[]
+# a=ucg[ucg.shape[0]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/ucgz.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+# a=ucg[:,ucg.shape[1]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/ucgy.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+# a=ucg[:,:,ucg.shape[2]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/ucgx.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+# # ucg=[]
+# a=ucgn[ucg.shape[0]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/ucgnz.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+# a=ucgn[:,ucg.shape[1]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/ucgny.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+# a=ucgn[:,:,ucg.shape[2]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/ucgnx.png',a,vmin=vmin,vmax=vmax,cmap='gray')
 
-a=un[un.shape[0]//2];a[0]=vmin;a[1]=vmax
-plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/unz.png',a,vmin=vmin,vmax=vmax,cmap='gray')
-a=un[:,un.shape[1]//2];a[0]=vmin;a[1]=vmax
-plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/uny.png',a,vmin=vmin,vmax=vmax,cmap='gray')
-a=un[:,:,un.shape[2]//2];a[0]=vmin;a[1]=vmax
-plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/unx.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+
+# a=un[un.shape[0]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/unz.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+# a=un[:,un.shape[1]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/uny.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+# a=un[:,:,un.shape[2]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/unx.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+
+
+vmin=22000
+vmax=32768*2-26000
+a=upsi3[upsi3.shape[0]//2];a[0]=vmin;a[1]=vmax
+plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/upsi3z.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+a=upsi3[:,upsi3.shape[1]//2];a[0]=vmin;a[1]=vmax
+plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/upsi3y.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+a=upsi3[:,:,upsi3.shape[2]//2];a[0]=vmin;a[1]=vmax
+plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/upsi3x.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+
+# a=upsi7[upsi7.shape[0]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/upsi7z.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+# a=upsi7[:,upsi7.shape[1]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/upsi7y.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+# a=upsi7[:,:,upsi7.shape[2]//2];a[0]=vmin;a[1]=vmax
+# plt.imsave('/data/staff/tomograms/vviknik/tomoalign_vincent_data/mask/Run4_9_1_40min_8keV_phase_100proj_per_rot_interlaced_1201prj_1s_024/figs/upsi7x.png',a,vmin=vmin,vmax=vmax,cmap='gray')
+
 # un=[]
 exit()
 

@@ -28,11 +28,14 @@ def prealign(data, pprot):
     return res
 
 
-def pcg(data, theta, pprot, pnz, center, ngpus, niter):
+def pcg(data, theta, pprot, pnz, center, ngpus, niter, padding=False):
     """Reconstruct with the _prealigned CG (pCG)"""
 
     [ntheta, nz, n] = data.shape
-    ne = _take_psize(n)
+    if (padding):
+        ne = _take_psize(n)
+    else:
+        ne = n
     u = np.zeros([nz, ne, ne], dtype='float32')
     # tomographic solver on GPU
     with SolverTomo(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus) as tslv:
@@ -41,11 +44,30 @@ def pcg(data, theta, pprot, pnz, center, ngpus, niter):
     res = {'u': u}
     return res
 
-def pinv(data, theta, pprot, pnz, center, ngpus, niter):
+def cg(data, theta, pprot, pnz, center, ngpus, niter,padding=False):
     """Reconstruct with the _prealigned CG (pCG)"""
 
     [ntheta, nz, n] = data.shape
-    ne = _take_psize(n)
+    if (padding):
+        ne = _take_psize(n)
+    else:
+        ne = n
+    u = np.zeros([nz, ne, ne], dtype='float32')
+    # tomographic solver on GPU
+    with SolverTomo(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus) as tslv:
+        u = unpadobject(tslv.cg_tomo_batch(
+            paddata(data, ne, n), u, niter), ne, n)
+    res = {'u': u}
+    return res
+
+def pinv(data, theta, pprot, pnz, center, ngpus, niter, padding=False):
+    """Reconstruct with the _prealigned CG (pCG)"""
+
+    [ntheta, nz, n] = data.shape
+    if (padding):
+        ne = _take_psize(n)
+    else:
+        ne = n
     u = np.zeros([nz, ne, ne], dtype='float32')
     # tomographic solver on GPU
     with SolverTomo(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus) as tslv:
@@ -54,11 +76,14 @@ def pinv(data, theta, pprot, pnz, center, ngpus, niter):
     res = {'u': u}
     return res
 
-def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, res=None, fname='', titer=4):
+def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, res=None, fname='', titer=4, padding=True):
     """Reconstruct with the optical flow method (OF)"""
     [ntheta, nz, n] = data.shape
     # tomographic solver on GPU
-    ne = _take_psize(n)
+    if (padding):
+        ne = _take_psize(n)
+    else:
+        ne = n
 
     with SolverTomo(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus) as tslv:
         # alignment solver on GPU
@@ -138,11 +163,16 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
     return res
 
 
-def admm_of_reg(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin, stepwin, res=None, fname=''):
+
+
+def admm_of_reg(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin, stepwin, res=None, fname='', padding=False):
     """Reconstruct with the optical flow method and regularization (OFTV)"""
 
     [ntheta, nz, n] = data.shape
-    ne = _take_psize(n)
+    if (padding):
+        ne = _take_psize(n)
+    else:
+        ne = n
     # tomographic solver on GPU
     lagr = np.zeros([niter, 6], dtype='float32')
     with SolverTomo(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus) as tslv:
@@ -315,12 +345,12 @@ def _take_psize(n):
     # s = s[:5]+s[5:].replace('1', '0')
     # ne = int(s, 2)
     
-    ne=n
+    # ne=n
     print('padded size', ne)
     return ne
 
 
-def admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, fname):
+def admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, fname, padding=True):
     res = None
     levels = len(niter)
     for k in np.arange(0, levels):
@@ -328,7 +358,7 @@ def admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niter, startwin, ste
         # res = admm_of(databin, theta, int(pnz/pow(2, levels-k-1)), ptheta, center/pow(
             # 2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
         res = admm_of(databin, theta, int(np.ceil(pnz/pow(2, levels-k-1))), ptheta, center/pow(
-            2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
+            2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname, padding=padding)
         
         if(k < levels-1):
             res = _upsample(res)
@@ -336,14 +366,30 @@ def admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niter, startwin, ste
     return res
 
 
-def admm_of_reg_levels(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin, stepwin, fname):
+def admm_of_reg_levels(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin, stepwin, fname, padding=True):
     res = None
     levels = len(niter)
     for k in np.arange(0, levels):
         databin = _downsample(data, levels-k-1)
         res = admm_of_reg(databin, theta, int(pnz/pow(2, levels-k-1)), ptheta, center/pow(
-            2, levels-k-1), alpha/pow(2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
+            2, levels-k-1), alpha/pow(2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname, padding)
         if(k < levels-1):
             res = _upsample_reg(res)
+
+    return res
+
+def admm_of_levels_p(data, theta, pprot, pnz, ptheta, center, ngpus, niter, startwin, stepwin, fname):
+    res = None
+    levels = len(niter)
+    data = prealign(data, pprot)
+    for k in np.arange(0, levels):
+        databin = _downsample(data, levels-k-1)
+        # res = admm_of(databin, theta, int(pnz/pow(2, levels-k-1)), ptheta, center/pow(
+            # 2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
+        res = admm_of(databin, theta, int(np.ceil(pnz/pow(2, levels-k-1))), ptheta, center/pow(
+            2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname,padding)
+        
+        if(k < levels-1):
+            res = _upsample(res)
 
     return res

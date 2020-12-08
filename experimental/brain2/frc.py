@@ -50,8 +50,8 @@ def radial_profile(data, center):
     
     return radialprofile 
 
-# fname1 = '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167/cga_resolution1__1440/rect3/r_00000.tiff'
-# fname2 = '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167/cga_resolution2__1440/rect3/r_00000.tiff'
+fname1 = '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167/cga_resolution1__1440/rect3/r_00000.tiff'
+fname2 = '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167/cga_resolution2__1440/rect3/r_00000.tiff'
 
 # f1 = dxchange.read_tiff_stack(fname1, ind = np.arange(0,1024))[:,100:-100,100:-100]
 # f2 = dxchange.read_tiff_stack(fname2, ind = np.arange(0,1024))[:,100:-100,100:-100]
@@ -85,6 +85,30 @@ def radial_profile(data, center):
 # frc3 = radial_profile3d(ff1*np.conj(ff2),np.array(ff1.shape)//2)/\
 #     np.sqrt(radial_profile3d(np.abs(ff1)**2,np.array(ff1.shape)//2)*radial_profile3d(np.abs(ff2)**2,np.array(ff1.shape)//2))
 
+# fname1 = '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167/cgn_resolution1__1440/rect3/r_00000.tiff'
+# fname2 = '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/Brain_Petrapoxy_day2_2880prj_1440deg_167/cgn_resolution2__1440/rect3/r_00000.tiff'
+
+# f1 = dxchange.read_tiff_stack(fname1, ind = np.arange(0,1024))[:,100:-100,100:-100]
+# f2 = dxchange.read_tiff_stack(fname2, ind = np.arange(0,1024))[:,100:-100,100:-100]
+
+# ff1 = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(f1)))
+# ff2 = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(f2)))
+
+# frc4 = radial_profile3d(ff1*np.conj(ff2),np.array(ff1.shape)//2)/\
+#     np.sqrt(radial_profile3d(np.abs(ff1)**2,np.array(ff1.shape)//2)*radial_profile3d(np.abs(ff2)**2,np.array(ff1.shape)//2))
+
+# fname1 = '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/braintestp1/4_4_20_80_60_4_FBP_full/tomo_delta__ram-lak_freqscl_1.00_0001.tif'
+# fname2 = '/data/staff/tomograms/vviknik/tomoalign_vincent_data/brain/braintestp2/4_4_20_80_60_4_FBP_full/tomo_delta__ram-lak_freqscl_1.00_0001.tif'
+
+# f1 = dxchange.read_tiff_stack(fname1, ind = np.arange(1,1025))[:,100:-100,100:-100]
+# f2 = dxchange.read_tiff_stack(fname2, ind = np.arange(1,1025))[:,100:-100,100:-100]
+
+# ff1 = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(f1)))
+# ff2 = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(f2)))
+
+# frc5 = radial_profile3d(ff1*np.conj(ff2),np.array(ff1.shape)//2)/\
+#     np.sqrt(radial_profile3d(np.abs(ff1)**2,np.array(ff1.shape)//2)*radial_profile3d(np.abs(ff2)**2,np.array(ff1.shape)//2))
+
 
 
 # hbit = halfbit3d(ff1,np.array(ff1.shape)//2)
@@ -93,20 +117,26 @@ def radial_profile(data, center):
 # np.save('frc1.npy',frc1)
 # np.save('frc2.npy',frc2)
 # np.save('frc3.npy',frc3)
+# np.save('frc4.npy',frc4)
 # np.save('hbit.npy',hbit)
-
+# np.save('frc5.npy',frc5)
+# exit()
 
 
 frc1=np.load('frc1.npy')
 frc2=np.load('frc2.npy')
 frc3=np.load('frc3.npy')
+frc4=np.load('frc4.npy')
+frc5=np.load('frc5.npy')
 hbit=np.load('hbit.npy')
 
 plt.figure(figsize=(7,4))
 
-plt.plot(frc1[:512].real,linewidth=1.5, label=r'pCG, 195nm')
-plt.plot(frc3[:512].real,linewidth=1.5, label=r'OF non-dense, 152nm')
-plt.plot(frc2[:512].real,linewidth=1.5, label=r'OF dense, 127nm')
+plt.plot(frc1[:512].real,linewidth=1.5, label=r'CG, 195 nm')
+plt.plot(frc4[:512].real,linewidth=1.5, label=r'pCG, 192 nm')
+plt.plot(frc5[:512].real,linewidth=1.5, label=r'OF 3D, 151 nm')
+plt.plot(frc3[:512].real,linewidth=1.5, label=r'OF non-dense, 152 nm')
+plt.plot(frc2[:512].real,linewidth=1.5, label=r'OF dense, 127 nm')
 
 plt.plot(hbit[:512],linewidth=1.5,label=r'1/2-bit')
 
