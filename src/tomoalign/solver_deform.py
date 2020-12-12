@@ -75,27 +75,28 @@ class SolverDeform(deform):
            tmp1, tmp2, flow[id], *pars)  # updates flow
         #if(cp.linalg.norm(flow[id])!=0):
          #    print(np.linalg.norm(flow[id]),cp.linalg.norm(tmp1-tmp2))
-
+         
 
     def registration_flow_batch(self, psi, g, mmin, mmax, flow=None, pars=[0.5, 3, 20, 16, 5, 1.1, 4]):
         """Find optical flow for all projections in parallel"""
         if (flow is None):
             flow = np.zeros([self.ntheta, self.nz, self.n, 2], dtype='float32')
+        total = 0
+        for k in range(self.ntheta//self.ptheta//10):
+            ids = np.arange(k*self.ptheta*10,(k+1)*self.ptheta*10)
+            flownew = flow[ids].copy()
+            with cf.ThreadPoolExecutor(20) as e:
+                # update flow in place
+                e.map(partial(self.registration_flow, psi[ids], g[ids], mmin[ids],
+                          mmax[ids], flownew, pars), range(0, len(ids)))
 
-        flow0 = flow.copy()
-        with cf.ThreadPoolExecutor() as e:
-            # update flow in place
-            e.map(partial(self.registration_flow, psi, g, mmin,
-                          mmax, flow, pars), range(0, psi.shape[0]))
-
-        # control Farneback's (may diverge for small window sizes)
-        err = np.linalg.norm(g-self.apply_flow_gpu_batch(psi, flow0),axis=(1,2))
-        err1 = np.linalg.norm(g-self.apply_flow_gpu_batch(psi, flow),axis=(1,2))
-        idsbad = np.where(err1>err)[0]
-        
-        print('bad alignment for:',len(idsbad))
-        flow[idsbad] = flow0[idsbad]
-
+            # control Farneback's (may diverge for small window sizes)
+            err = np.linalg.norm(g[ids]-self.apply_flow_gpu_batch(psi[ids], flownew),axis=(1,2))
+            err1 = np.linalg.norm(g[ids]-self.apply_flow_gpu_batch(psi[ids], flow[ids]),axis=(1,2))
+            idsgood = np.where(err1>=err)[0]        
+            total+=len(idsgood)
+            flow[ids[idsgood]] = flownew[idsgood]
+        print('bad alignment for:',self.ntheta-total)
         return flow
 
     def line_search(self, minf, gamma, psi, Dpsi, d, Td):
@@ -122,8 +123,8 @@ class SolverDeform(deform):
         return g
 
     def apply_flow_gpu_batch(self, f, flow):
-        res = np.zeros([self.ntheta, self.nz, self.n], dtype='float32')
-        for k in range(0, self.ntheta//self.ptheta):
+        res = np.zeros([f.shape[0], self.nz, self.n], dtype='float32')
+        for k in range(0, f.shape[0]//self.ptheta):
             ids = np.arange(k*self.ptheta, (k+1)*self.ptheta)
             # copy data part to gpu
             f_gpu = cp.array(f[ids])
