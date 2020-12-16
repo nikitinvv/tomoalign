@@ -78,6 +78,8 @@ def pinv(data, theta, pprot, pnz, center, ngpus, niter, padding=False):
 
 def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, res=None, fname='', titer=4, padding=True):
     """Reconstruct with the optical flow method (OF)"""
+
+    data = mload(fname,data,'data')
     [ntheta, nz, n] = data.shape
     # tomographic solver on GPU
     if (padding):
@@ -88,8 +90,6 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
     with SolverTomo(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus) as tslv:
         # alignment solver on GPU
         with SolverDeform(ntheta, nz, n, ptheta, ngpus) as dslv:
-            # find min,max values accoding to histogram
-            mmin, mmax = find_min_max(data)
 
             # initial guess and coordinating variables
             if(res == None):
@@ -99,12 +99,17 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                 lamd = np.zeros([ntheta, nz, n], dtype='float32')
                 flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
                 res = {}
+                u,psi,h0,lamd,flow = mdump(fname,u,'u',psi,'psi',h0,'h0',lamd,'lamd',flow,'flow')
             else:
                 u = res['u']
                 psi = res['psi']
                 h0 = res['h0']
                 lamd = res['lamd']
                 flow = res['flow']
+
+            # find min,max values accoding to histogram
+            mmin, mmax = find_min_max(data)
+            data = munload(fname,data,'data')
             # optical flow parameters (see openCV function for Farneback's algorithm)
             pars = [0.5, 1, startwin, titer, 5, 1.1, 4]
             rho = 0.5  # weighting factor in ADMM
@@ -114,19 +119,42 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
 
                 # 1. Solve the alignment sub-problem
                 # register flow
+                flow,psi,data = mload(fname,flow,'flow',psi,'psi',data,'data')
                 flow = dslv.registration_flow_batch(
                     psi, data, mmin, mmax, flow, pars)
-
+                flow = mdump(fname,flow, 'flow')
+                psi,data = munload(fname,psi, 'psi', data, 'data')       
+                # compute right side         
+                u, lamd = mload(fname,u,'u',lamd,'lamd')                
+                tmp = unpaddata(
+                    tslv.fwd_tomo_batch(u), ne, n)+lamd/rho
+                u,lamd = munload(fname,u,'u',lamd,'lamd')                
                 # unwarping
-                psi = dslv.cg_deform_gpu_batch(data, psi, flow, titer, unpaddata(
-                    tslv.fwd_tomo_batch(u), ne, n)+lamd/rho, rho)
+                data,psi,flow = mload(fname,data,'data',psi,'psi',flow,'flow')
+                psi = dslv.cg_deform_gpu_batch(data, psi, flow, titer, tmp, rho)
+                data = munload(fname,data,'data')                
+                # compute right side
+                lamd = mload(fname,lamd,'lamd')
+                tmp = paddata(psi-lamd/rho, ne, n)
+                lamd = munload(fname,lamd,'lamd')
+                psi = mdump(fname,psi,'psi')
                 # 2. Solve the tomography sub-problen
-                u = tslv.cg_tomo_batch(paddata(psi-lamd/rho, ne, n), u, titer)
-
+                u = mload(fname,u,'u')
+                u = tslv.cg_tomo_batch(tmp, u, titer)                
                 # compute forward tomography operator for further updates of rho and lambda
                 h = unpaddata(tslv.fwd_tomo_batch(u), ne, n)
+                u = mdump(fname,u,'u')
                 # 3. dual update
+                lamd,psi = mload(fname,lamd,'lamd',psi,'psi')
                 lamd = lamd+rho*(h-psi)
+                lamd = mdump(fname,lamd,'lamd')
+                # psi = munload(fname,psi,'psi')
+                h0 = mload(fname,h0,'h0')
+                rho = _update_penalty(psi, h, h0, rho)
+                psi = munload(fname,psi,'psi')
+                h0 = h
+                h0 = mdump(fname,h0,'h0')
+                h = munload(fname,h,'h')
 
                 if(np.mod(k, 4) == 0):  # check Lagrangian, save current iteration results
                     # Dpsi = dslv.apply_flow_gpu_batch(psi, flow)
@@ -139,20 +167,21 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                     #     k, np.linalg.norm(flow), pars[2], rho, *lagr[k]))
                     # sys.stdout.flush()
                     # save object
+                    u = mload(fname,u,'u')
                     dxchange.write_tiff_stack(unpadobject(
                         u, ne, n),  fname+'/data/of_recon/recon/iter'+str(k), overwrite=True)
+                    u = munload(fname,u,'u')
                     # dxchange.write_tiff_stack(psi,  fname+'/data/of_recon/psi/iter'+str(k), overwrite=True)
                     # save flow figure
                     # np.save(fname+'/data/of_recon/flow'+str(k), flow)
-                dslv.flowplot(
-                    u, psi, flow, fname+'/data/of_recon/flow_iter'+str(k))                    
+                    # u,psi,flow = mload(fname,u,'u',psi,'psi',flow,'flow')
+                    # dslv.flowplot(
+                    #     u, psi, flow, fname+'/data/of_recon/flow_iter'+str(k))                    
+                    # u,psi,flow = munload(fname,u,'u',psi,'psi',flow,'flow')
                 # update rho
-                rho = _update_penalty(psi, h, h0, rho)
-                h0 = h
-
+                
                 if(pars[2] > 12):  # limit optical flow window size
                     pars[2] -= stepwin
-                gc.collect()
         res['u'] = u
         res['psi'] = psi
         res['h0'] = h0
@@ -161,8 +190,6 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
         res['lagr'] = lagr
 
     return res
-
-
 
 
 def admm_of_reg(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin, stepwin, res=None, fname='', padding=False):
@@ -306,27 +333,34 @@ def _fftupsample(f, dims):
     return f.real.astype('float32')*(f.size/fsize)
 
 
-def _upsample(init):
+def _upsample(init,fname=None):
     # init['u'] = ndimage.zoom(init['u'], 2, order=1)
     # init['psi'] = ndimage.zoom(init['psi'], (1, 2, 2), order=1)
     # init['h0'] = ndimage.zoom(init['h0'], (1, 2, 2), order=1)
     # init['lamd'] = ndimage.zoom(init['lamd'], (1, 2, 2), order=1)
     # init['flow'] = ndimage.zoom(init['flow'], (1, 2, 2, 1), order=1)*2
-
+    init['u'] = mload(fname,init['u'],'u')
     init['u'] = _fftupsample(init['u'], [0])
     init['u'] = _fftupsample(init['u'], [1])
     init['u'] = _fftupsample(init['u'], [2])
+    init['u'] = mdump(fname,init['u'],'u')
+    init['psi'] = mload(fname,init['psi'],'psi')
     init['psi'] = _fftupsample(init['psi'], [1])
     init['psi'] = _fftupsample(init['psi'], [2])
+    init['psi'] = mdump(fname,init['psi'],'psi')
+    init['h0'] = mload(fname,init['h0'],'h0')
     init['h0'] = _fftupsample(init['h0'], [1])
     init['h0'] = _fftupsample(init['h0'], [2])
+    init['h0'] = mdump(fname,init['h0'],'h0')
+    init['lamd'] = mload(fname,init['lamd'],'lamd')
     init['lamd'] = _fftupsample(init['lamd'], [1])
     init['lamd'] = _fftupsample(init['lamd'], [2])
+    init['lamd'] = mdump(fname,init['lamd'],'lamd')
+    init['flow'] = mload(fname,init['flow'],'flow')
     init['flow'] = _fftupsample(init['flow'], [1])
     init['flow'] = _fftupsample(init['flow'], [2])*2
-    
+    init['flow'] = mdump(fname,init['flow'],'flow')
     return init
-
 
 def _upsample_reg(init):
 
@@ -353,7 +387,7 @@ def _take_psize(n):
     s = bin(n)
     s = s[:3]+s[3:].replace('1', '0')
     ne = int(s, 2)
-    ne+=(ne//4)
+    ne+=(ne)
 
     # s = bin(int(3*n//2))
     # s = s[:5]+s[5:].replace('1', '0')
@@ -370,14 +404,16 @@ def admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niter, startwin, ste
     for k in np.arange(0, levels):
         databin = _downsample(data, levels-1-k)
         print(databin.shape)
+        databin = mdump(fname,databin,'data')
         # res = admm_of(databin, theta, int(pnz/pow(2, k)), ptheta, center/pow(
             # 2, k), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
         res = admm_of(databin, theta, int(np.ceil(pnz/pow(2, k))), ptheta, center/pow(
             2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname, padding=padding)
         
         if(k < levels-1):
-            res = _upsample(res)
-    res['u'] = unpadobject(res['u'],ne,n)
+            res = _upsample(res,fname)
+    res['u'] = mload(fname,res['u'],'u')    
+    res['u'] = unpadobject(res['u'],res['u'].shape[2],data.shape[2])
     return res
 
 

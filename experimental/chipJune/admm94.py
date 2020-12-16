@@ -14,7 +14,7 @@ if __name__ == "__main__":
     name = sys.argv[5]
 
     binning = 0
-    data = np.zeros([nsets*ndsets*nth, (2048-512-512)//pow(2, binning),
+    data = np.zeros([nsets*ndsets*nth, (2048-384-384)//pow(2, binning),
                      (2448)//pow(2, binning)], dtype='float32')
     theta = np.zeros(nsets*ndsets*nth, dtype='float32')
     strs = ['094']
@@ -24,7 +24,7 @@ if __name__ == "__main__":
         for k in range(ndsets):
             print(j,k)
             idstart = j*ndsets*nth+k*nth
-            data[idstart:idstart+nth] = np.load(name0+'fw_bin'+str(binning)+str(k)+'.npy')[:,512:-512,:].astype('float32')                                   
+            data[idstart:idstart+nth] = np.load(name0+'fw_bin'+str(binning)+str(k)+'.npy')[:,384-40:-384-40,:].astype('float32')                                   
             theta[idstart:idstart+nth] = np.load(name0+'_theta'+str(k)+'.npy').astype('float32')
     data = data-np.mean(data)            
     data[np.isnan(data)] = 0
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     pnz = 8
     ptheta = 10
     niteradmm = [80, 72, 32, 24]  # number of iterations in the ADMM scheme
-    # niteradmm = [0, 0, 0, 2]  # number of iterations in the ADMM scheme
+    # niteradmm = [5, 5, 5, 5]  # number of iterations in the ADMM scheme
     # starting window size in optical flow estimation
     startwin = [128, 96, 48, 32]
     # step for decreasing the window size in optical flow estimtion
@@ -56,6 +56,6 @@ if __name__ == "__main__":
 
     dxchange.write_tiff_stack(
         res['u'], name+'/results_admm/u/r', overwrite=True)
-    dxchange.write_tiff_stack(
-        res['psi'], name+'/results_admm/psi/r', overwrite=True)
-    np.save(name+'/results_admm/flow.npy', res['flow'])
+    # dxchange.write_tiff_stack(
+    #     res['psi'], name+'/results_admm/psi/r', overwrite=True)
+    # np.save(name+'/results_admm/flow.npy', res['flow'])

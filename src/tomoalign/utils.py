@@ -61,3 +61,39 @@ def interpdense(u,psi,lamd,flow):
 
 
 
+
+
+def mload(fname, *args):
+    res = []
+    for k in range(0,len(args),2):
+#        print('load',args[k+1])
+        res.append(np.load(fname+'/'+args[k+1]+'.npy'))
+    if len(res)==1: 
+        res = res[0]    
+    else:
+         res = tuple(res)            
+    return res
+
+def mdump(fname, *args):
+    res = []
+    for k in range(0,len(args),2):
+        #print('save',args[k+1])
+        np.save(fname+'/'+args[k+1]+'.npy',args[k])
+        #print(args[k].shape)
+        res.append(None)        
+    if len(res)==1: 
+        res = res[0]    
+    else:
+         res = tuple(res)            
+    return res
+
+def munload(fname, *args):
+    res = []
+    for k in range(0,len(args),2):
+        #print('unload',args[k+1])
+        res.append(None)
+    if len(res)==1: 
+        res = res[0]    
+    else:
+         res = tuple(res)            
+    return res
