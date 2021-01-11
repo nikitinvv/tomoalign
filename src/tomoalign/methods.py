@@ -10,14 +10,14 @@ import sys
 import scipy as sp
 import gc
 
-def prealign(data, pprot):
+def prealignw(data, pprot, w):
     """prealign projections by optical flow according to adjacent interlaced angles"""
 
     [ntheta, nz, n] = data.shape
     mmin, mmax = find_min_max(data)
     # parameters for non-dense flow in Farneback's algorithm,
     # resulting flow is constant, i.e. equivalent to a shift
-    pars = [0.5, 1, 2*n, 4, 5, 1.1, 4]
+    pars = [0.5, 1, w, 16, 5, 1.1, 4]
     res = data.copy()
     for k in range(1, ntheta//pprot):
         with SolverDeform(pprot, nz, n, 16, 1) as dslv:
@@ -25,6 +25,27 @@ def prealign(data, pprot):
                 data[k*pprot:(k+1)*pprot], data[0*pprot:(0+1)*pprot], mmin[:pprot], mmax[:pprot], None, pars)
             res[k*pprot:(k+1)*pprot] = dslv.apply_flow_gpu_batch(data[k *
                                                                       pprot:(k+1)*pprot], flow)
+    return res
+
+
+def prealign(data, pprot0):
+    """prealign projections by optical flow according to adjacent interlaced angles"""
+
+    [ntheta, nz, n] = data.shape
+    mmin, mmax = find_min_max(data)
+    # parameters for non-dense flow in Farneback's algorithm,
+    # resulting flow is constant, i.e. equivalent to a shift
+    pars = [0.5, 1, max(n,nz), 16, 5, 1.1, 4]
+    res = data.copy()
+    print(int(np.ceil(ntheta/pprot0)))
+    for k in range(1, int(np.ceil(ntheta/pprot0))):
+        pprot = min(pprot0,ntheta-k*pprot0)
+        print(k,pprot)
+        with SolverDeform(pprot, nz, n, 20, 1) as dslv:
+            flow = dslv.registration_flow_batch(
+                data[k*pprot:(k+1)*pprot], data[0*pprot:(0+1)*pprot], mmin[:pprot], mmax[:pprot], None, pars)
+            res[k*pprot:(k+1)*pprot] = dslv.apply_flow_gpu_batch(data[k *
+                                                                      pprot:(k+1)*pprot], flow)                                                                    
     return res
 
 
@@ -334,12 +355,24 @@ def _fftupsample(f, dims):
 
 
 def _upsample(init,fname=None):
+    # init['u'] = mload(fname,init['u'],'u')
     # init['u'] = ndimage.zoom(init['u'], 2, order=1)
+    # init['u'] = mdump(fname,init['u'],'u')
+    # init['psi'] = mload(fname,init['psi'],'psi')
     # init['psi'] = ndimage.zoom(init['psi'], (1, 2, 2), order=1)
+    # init['psi'] = mdump(fname,init['psi'],'psi')
+    # init['h0'] = mload(fname,init['h0'],'h0')
     # init['h0'] = ndimage.zoom(init['h0'], (1, 2, 2), order=1)
+    # init['h0'] = mdump(fname,init['h0'],'h0')
+    # init['lamd'] = mload(fname,init['lamd'],'lamd')
     # init['lamd'] = ndimage.zoom(init['lamd'], (1, 2, 2), order=1)
+    # init['lamd'] = mdump(fname,init['lamd'],'lamd')
+    # init['flow'] = mload(fname,init['flow'],'flow')
     # init['flow'] = ndimage.zoom(init['flow'], (1, 2, 2, 1), order=1)*2
+    # init['flow'] = mdump(fname,init['flow'],'flow')
+
     init['u'] = mload(fname,init['u'],'u')
+    # init['u'] = mdump(fname,init['u'],'u')
     init['u'] = _fftupsample(init['u'], [0])
     init['u'] = _fftupsample(init['u'], [1])
     init['u'] = _fftupsample(init['u'], [2])
@@ -387,7 +420,7 @@ def _take_psize(n):
     s = bin(n)
     s = s[:3]+s[3:].replace('1', '0')
     ne = int(s, 2)
-    ne+=(ne)
+    ne+=(ne//2+ne//4)
 
     # s = bin(int(3*n//2))
     # s = s[:5]+s[5:].replace('1', '0')
@@ -403,7 +436,6 @@ def admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niter, startwin, ste
     levels = len(niter)
     for k in np.arange(0, levels):
         databin = _downsample(data, levels-1-k)
-        print(databin.shape)
         databin = mdump(fname,databin,'data')
         # res = admm_of(databin, theta, int(pnz/pow(2, k)), ptheta, center/pow(
             # 2, k), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
@@ -426,21 +458,5 @@ def admm_of_reg_levels(data, theta, pnz, ptheta, center, alpha, ngpus, niter, st
             2,  levels-k-1), alpha/pow(2, k), ngpus, niter[k], startwin[k], stepwin[k], res, fname, padding)
         if(k < levels-1):
             res = _upsample_reg(res)
-
-    return res
-
-def admm_of_levels_p(data, theta, pprot, pnz, ptheta, center, ngpus, niter, startwin, stepwin, fname):
-    res = None
-    levels = len(niter)
-    data = prealign(data, pprot)
-    for k in np.arange(0, levels):
-        databin = _downsample(data, levels-1-k)
-        # res = admm_of(databin, theta, int(pnz/pow(2, k)), ptheta, center/pow(
-            # 2, k), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
-        res = admm_of(databin, theta, int(np.ceil(pnz/pow(2, k))), ptheta, center/pow(
-            2,  levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname,padding)
-        
-        if(k < levels-1):
-            res = _upsample(res)
 
     return res

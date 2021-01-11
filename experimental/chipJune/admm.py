@@ -3,7 +3,7 @@ import numpy as np
 import sys
 import tomoalign
 import scipy.ndimage as ndimage
-
+import os
 
 if __name__ == "__main__":
 
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     data = np.zeros([nsets*ndsets*nth, (2048-512-512)//pow(2, binning),
                      (2448)//pow(2, binning)], dtype='float32')
     theta = np.zeros(nsets*ndsets*nth, dtype='float32')
-    strs = ['098','099','100']
+    strs = ['104','105','106','107']
     for j in range(nsets):                
         name0 = name[:-3]+strs[j]
         print(name0)
@@ -26,11 +26,14 @@ if __name__ == "__main__":
             idstart = j*ndsets*nth+k*nth
             data[idstart:idstart+nth] = np.load(name0+'fw_bin'+str(binning)+str(k)+'.npy')[:,512:-512,:].astype('float32')                                   
             theta[idstart:idstart+nth] = np.load(name0+'_theta'+str(k)+'.npy').astype('float32')
+    
     data[np.isnan(data)] = 0    
     data = data-np.mean(data)            
+    dxchange.write_tiff_stack(data,name0+'/data/d',overwrite=True)
+    exit()
     datanew = np.zeros([data.shape[0]//2,data.shape[1],data.shape[2]],dtype='float32',order='C')
     thetanew = np.zeros([data.shape[0]//2],dtype='float32',order='C')
-    shift = 0
+    shift = start
     for k in range(nsets):
         datanew[k*datanew.shape[0]//nsets:(k+1)*datanew.shape[0]//nsets] = data[k*ndsets*nth+shift:(k+1)*ndsets*nth:2]
         thetanew[k*datanew.shape[0]//nsets:(k+1)*datanew.shape[0]//nsets] = theta[k*ndsets*nth+shift:(k+1)*ndsets*nth:2]
@@ -49,7 +52,8 @@ if __name__ == "__main__":
     center = 1255
 
     name += '/fwpad'+str(len(theta))+'_'+str(start)+'/'
-
+    if(not os.path.isdir(name)):
+        os.mkdir(name)
     res = tomoalign.admm_of_levels(
         data, theta, pnz, ptheta, center, ngpus, niteradmm, startwin, stepwin, name,padding=True)
 

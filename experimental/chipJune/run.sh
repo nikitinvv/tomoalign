@@ -16,6 +16,5 @@
 # python admm.py 3 10 200 0 /data/staff/tomograms/vviknik/tomoalign_vincent_data/chipJune/chip_16nmZP_tube_lens_interlaced_2000prj_3s_098
 # python admm.py 3 10 200 1 /data/staff/tomograms/vviknik/tomoalign_vincent_data/chipJune/chip_16nmZP_tube_lens_interlaced_2000prj_3s_098
 #
-python admm94.py 1 5 200 0 /data/staff/tomograms/vviknik/tomoalign_vincent_data/chipJune/chip_16nmZP_tube_lens_interlaced_4000prj_3s_094
-python admm94.py 1 10 200 0 /data/staff/tomograms/vviknik/tomoalign_vincent_data/chipJune/chip_16nmZP_tube_lens_interlaced_4000prj_3s_094
-python admm94.py 1 15 200 0 /data/staff/tomograms/vviknik/tomoalign_vincent_data/chipJune/chip_16nmZP_tube_lens_interlaced_4000prj_3s_094
+python admm.py 2 10 200 0 /data/staff/tomograms/vviknik/tomoalign_vincent_data/chipJune/chip_16nmZP_tube_lens_interlaced_2000prj_3s_098
+python admm.py 2 10 200 1 /data/staff/tomograms/vviknik/tomoalign_vincent_data/chipJune/chip_16nmZP_tube_lens_interlaced_2000prj_3s_098

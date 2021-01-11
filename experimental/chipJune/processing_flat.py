@@ -18,12 +18,19 @@ flat_field_drift_corr = False  # Correct the intensity drift
 remove_rings = True
 binning = np.int(sys.argv[3])
 ######################################################################################################################
-
+def normalize_adv(prj,flat,dark):
+    dark0 = np.mean(dark,0)
+    for k in range(flat.shape[0]):
+        prj0 = (prj[0]-dark0)/(flat[k]-dark0)
+        dxchange.write_tiff(prj0.astype('float32'),name+'/flat/'+str(k))
+    exit()        
 
 def preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remove_rings, FF_drift_corr=flat_field_drift_corr, downsapling=binning):
 
     if FF_norm:  # dark-flat field correction
         prj = tomopy.normalize(prj, flat, dark)
+        # prj = normalize_adv(prj, flat, dark)
+
     if FF_drift_corr:  # flat field drift correction
         prj = tomopy.normalize_bg(prj, air=50)
     prj[prj <= 0] = 1  # check dark<data

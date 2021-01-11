@@ -30,17 +30,19 @@ if __name__ == "__main__":
     #idF = in_file.find('rect')
     out_file = in_file+'rotated'+str(order)+'_'+str(iter)+'_'+str(binning)
     print('rotate',out_file)
-    data = dxchange.read_tiff_stack(in_file+'/data/of_recon/recon/iter'+str(iter)+'_00000.tiff', ind=range(0, 2048//pow(2,binning)))
+    #data = dxchange.read_tiff_stack(in_file+'/data/of_recon/recon/iter'+str(iter)+'_00000.tiff', ind=range(0, 2048//pow(2,binning)))
+    data = dxchange.read_tiff_stack(in_file+'/results_admm/u/r_00000.tiff', ind=range(0, 2048//pow(2,binning)))
 
     data = rotate_batch(data, 51, order=order)
     data = data.swapaxes(0,2)
     data = rotate_batch(data, 34, order=order)
     data = data.swapaxes(0,2)
 
-    data = data[500//pow(2,binning):900//pow(2,binning)]
+    data = data[450//pow(2,binning):962//pow(2,binning)]
+    # data = data[200//pow(2,binning):1224//pow(2,binning)]
     dxchange.write_tiff_stack(data, out_file+'/r', overwrite=True)
     
-    data=dxchange.read_tiff_stack(out_file+'/r_00000.tiff', ind=[(691-500)//pow(2,binning),(658-500)//pow(2,binning),(672-500)//pow(2,binning)])
+    data=dxchange.read_tiff_stack(out_file+'/r_00000.tiff', ind=[(691-450)//pow(2,binning),(658-450)//pow(2,binning),(672-450)//pow(2,binning)])
 
     # #bin2
     # plt.imsave(out_file+'z1.png',data[1112//pow(2,binning)],vmin=-0.003,vmax=0.006,cmap='gray')

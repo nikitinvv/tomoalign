@@ -82,8 +82,8 @@ class SolverDeform(deform):
         if (flow is None):
             flow = np.zeros([self.ntheta, self.nz, self.n, 2], dtype='float32')
         total = 0
-        for k in range(self.ntheta//self.ptheta//10):
-            ids = np.arange(k*self.ptheta*10,(k+1)*self.ptheta*10)
+        for k in range(self.ntheta//self.ptheta):
+            ids = np.arange(k*self.ptheta,(k+1)*self.ptheta)
             flownew = flow[ids].copy()
             with cf.ThreadPoolExecutor(20) as e:
                 # update flow in place
@@ -95,6 +95,7 @@ class SolverDeform(deform):
             err1 = np.linalg.norm(g[ids]-self.apply_flow_gpu_batch(psi[ids], flow[ids]),axis=(1,2))
             idsgood = np.where(err1>=err)[0]        
             total+=len(idsgood)
+            #print(err,err1)
             flow[ids[idsgood]] = flownew[idsgood]
         print('bad alignment for:',self.ntheta-total)
         return flow
