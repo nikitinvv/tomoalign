@@ -118,6 +118,7 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                 h0 = psi.copy()
                 lamd = np.zeros([ntheta, nz, n], dtype='float32')
                 flow = np.zeros([ntheta, nz, n, 2], dtype='float32')                                
+                res = {}
             else:
                 u = res['u']
                 psi = res['psi']
@@ -167,7 +168,7 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                     # save object
                     dxchange.write_tiff_stack(unpadobject(
                         u, ne, n),  fname+'/data/of_recon/recon/iter'+str(k), overwrite=True)
-                    dxchange.write_tiff_stack(psi,  fname+'/data/of_recon/psi/iter'+str(k), overwrite=True)
+                    #dxchange.write_tiff_stack(psi,  fname+'/data/of_recon/psi/iter'+str(k), overwrite=True)
                     # save flow figure
                     dslv.flowplot(
                         u, psi, flow, fname+'/data/of_recon/flow_iter'+str(k))                                        
@@ -350,7 +351,6 @@ def _upsample_reg(init):
     init['psi2'] = _fftupsample(init['psi2'], [1])
     init['psi2'] = _fftupsample(init['psi2'], [2])
     init['psi2'] = _fftupsample(init['psi2'], [3])
-    init['h01'] = _fftupsample(init['h01'], [1, 2])
     init['h01'] = _fftupsample(init['h01'], [1])
     init['h01'] = _fftupsample(init['h01'], [2])
     init['h02'] = _fftupsample(init['h02'], [1])
@@ -370,7 +370,7 @@ def _take_psize(n):
     s = bin(n)
     s = s[:3]+s[3:].replace('1', '0')
     ne = int(s, 2)
-    ne+=(ne//2+ne//4)
+    ne+=(ne//2+ne//8)
     
     print('padded size', ne)
     return ne

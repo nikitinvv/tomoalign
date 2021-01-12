@@ -27,16 +27,16 @@ if __name__ == "__main__":
             data[idstart:idstart+nth] = np.load(name0+'fw_bin'+str(binning)+str(k)+'.npy').astype('float32')                                   
             theta[idstart:idstart+nth] = np.load(name0+'_theta'+str(k)+'.npy').astype('float32')
     data[np.isnan(data)] = 0
-    data = data[:3900]
-    ngpus = 4
+    data = data[:3900,:-256,:]
+    ngpus = 8
     pnz = 8
-    ptheta = 30
-    niteradmm = [80, 72, 32, 24]  # number of iterations in the ADMM scheme
+    ptheta = 10
+    niteradmm = [80, 72, 32, 26]  # number of iterations in the ADMM scheme
     niteradmm = [2, 2, 2, 2]  # number of iterations in the ADMM scheme
     # starting window size in optical flow estimation
-    startwin = [128, 96, 48, 32]
+    startwin = [256, 192, 96, 64]
     # step for decreasing the window size in optical flow estimtion
-    stepwin = [1, 1, 1, 1]
+    stepwin = [1, 1, 1, 2]
     center = 1158.5
     name += '/fw'+str(len(theta))+'_'+str(start)+'/'
     res = tomoalign.admm_of_levels(

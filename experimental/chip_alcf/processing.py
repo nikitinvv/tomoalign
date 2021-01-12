@@ -23,19 +23,19 @@ binning = np.int(sys.argv[3])
 def preprocess_data(prj, flat, dark, FF_norm=flat_field_norm, remove_rings=remove_rings, FF_drift_corr=flat_field_drift_corr, downsapling=binning):
 
     if FF_norm:  # dark-flat field correction
-        prj = tomopy.normalize(prj, flat, dark)
+        prj = tomopy.normalize(prj, flat, dark, ncore=32)
     if FF_drift_corr:  # flat field drift correction
         prj = tomopy.normalize_bg(prj, air=50)
     prj[prj <= 0] = 1  # check dark<data
-    prj = tomopy.minus_log(prj)  # -logarithm
+    prj = tomopy.minus_log(prj, ncore=32)  # -logarithm
     if remove_rings:  # remove rings
         prj = tomopy.remove_stripe_fw(
-             prj, level=7, wname='sym16', sigma=1, pad=True)
+             prj, level=7, wname='sym16', sigma=1, pad=True, ncore=32)
         #prj = tomopy.remove_stripe_ti(prj,2)
         # prj = tomopy.remove_all_stripe(prj)
     if downsapling > 0:  # binning
-        prj = tomopy.downsample(prj, level=binning)
-        prj = tomopy.downsample(prj, level=binning, axis=1)
+        prj = tomopy.downsample(prj, level=binning, ncore=32)
+        prj = tomopy.downsample(prj, level=binning, axis=1, ncore=32)
     return prj
 
 
@@ -44,6 +44,7 @@ if __name__ == "__main__":
     # read data
         prj, flat, dark, theta = dxchange.read_aps_32id(
             file_name, sino=(sino_start, sino_end), proj=(theta_end*k,theta_end*(k+1)))
+        flat = flat[:10]        
         print(theta.shape)
         theta = theta[theta_end*k:theta_end*(k+1)]
         # preprocess

@@ -85,7 +85,7 @@ class SolverDeform(deform):
         for k in range(self.ntheta//self.ptheta):
             ids = np.arange(k*self.ptheta,(k+1)*self.ptheta)
             flownew = flow[ids].copy()
-            with cf.ThreadPoolExecutor(20) as e:
+            with cf.ThreadPoolExecutor(30) as e:
                 # update flow in place
                 e.map(partial(self.registration_flow, psi[ids], g[ids], mmin[ids],
                           mmax[ids], flownew, pars), range(0, len(ids)))
