@@ -39,8 +39,9 @@ if __name__ == "__main__":
     stepwin = [1, 1, 1, 2]
     center = 1158.5
     name += '/fw'+str(len(theta))+'_'+str(start)+'/'
+    fname_fast = ?
     res = tomoalign.admm_of_levels(
-        data, theta, pnz, ptheta, center, ngpus, niteradmm, startwin, stepwin, name,padding=True)
+        data, theta, pnz, ptheta, center, ngpus, niteradmm, startwin, stepwin, name,fname_fast,padding=True)
 
     dxchange.write_tiff_stack(
         res['u'], name+'/results_admm/u/r', overwrite=True)
