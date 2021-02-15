@@ -1,5 +1,5 @@
 # tomoalign
-Multi-GPU reconstruction of tomographic data with non-rogod projection alignment
+Multi-GPU reconstruction of tomographic data with non-rigid projection alignment
 
 see https://arxiv.org/abs/2008.03375 for details
 
