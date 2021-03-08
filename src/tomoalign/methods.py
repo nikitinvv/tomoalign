@@ -79,7 +79,6 @@ def pinv(data, theta, pprot, pnz, center, ngpus, niter, padding=False):
     res = {'u': u}
     return res
 
-@profile
 def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, res=None, fname='', titer=4, padding=True):
     """Reconstruct with the optical flow method (OF)"""
 
@@ -114,20 +113,25 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
             pars = [0.5, 1, startwin, titer, 5, 1.1, 4]
             rho = 0.5  # weighting factor in ADMM
             lagr = np.zeros([niter, 4], dtype='float32')
-
+            t = np.zeros(3)
             for k in range(niter):
 
                 # 1. Solve the alignment sub-problem
                 # register flow
+                tic()
                 flow = dslv.registration_flow_batch(
                     psi, data, mmin, mmax, flow, pars)
-
+                t[0]=toc()
                 # unwarping
+                tic()
                 psi = dslv.cg_deform_gpu_batch(data, psi, flow, titer, unpaddata(
                     tslv.fwd_tomo_batch(u), n)+lamd/rho, rho)
+                t[1]=toc()
+                tic()
                 # 2. Solve the tomography sub-problen
                 u = tslv.cg_tomo_batch(paddata(psi-lamd/rho, ne), u, titer)
-
+                t[2]=toc()
+ 
                 # compute forward tomography operator for further updates of rho and lambda
                 h = unpaddata(tslv.fwd_tomo_batch(u), n)
                 # 3. dual update
@@ -140,16 +144,16 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                     lagr[k, 2] = 0.5*rho*np.linalg.norm(h-psi)**2
                     lagr[k, 2] = 0.5*rho*np.linalg.norm(h-psi)**2
                     lagr[k, 3] = np.sum(lagr[k, 0:3])
-                    print("iter %d, %.2f wsize %d, rho %.2f, Lagrangian %.4e %.4e %.4e Total %.4e " % (
-                        k, np.linalg.norm(flow), pars[2], rho, *lagr[k]))
+                    print("iter %d, %.2f wsize %d, rho %.2f, Lagrangian %.4e %.4e %.4e Total %.4e Time: %.2f %.2f %.2f " % (
+                        k, np.linalg.norm(flow), pars[2], rho, *lagr[k], *t))
                     sys.stdout.flush()
                     # save object
-                    dxchange.write_tiff_stack(unpadobject(
-                        u, n),  fname+'/data/of_recon/recon/iter'+str(k), overwrite=True)
-                    dxchange.write_tiff_stack(
-                        psi,  fname+'/data/of_recon/psi/iter'+str(k), overwrite=True)
+                    #dxchange.write_tiff_stack(unpadobject(
+                    #    u, n),  fname+'/data/of_recon/recon/iter'+str(k), overwrite=True)
+                    #dxchange.write_tiff_stack(
+                    #    psi,  fname+'/data/of_recon/psi/iter'+str(k), overwrite=True)
                     # save flow figure
-                    np.save(fname+'/data/of_recon/flow'+str(k), flow)
+                    #np.save(fname+'/data/of_recon/flow'+str(k), flow)
                 # dslv.flowplot(
                 #     u, psi, flow, fname+'/data/of_recon/flow_iter'+str(k))
                 # update rho
@@ -359,6 +363,7 @@ def _take_psize(n):
     ne = int(s, 2)
     ne += (ne//4)
 
+    ne = 3*n//2
     # s = bin(int(3*n//2))
     # s = s[:5]+s[5:].replace('1', '0')
     # ne = int(s, 2)

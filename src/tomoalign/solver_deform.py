@@ -31,6 +31,7 @@ class SolverDeform(deform):
             print('Error, ptheta is not a multiple of ntheta')
             exit()
         super().__init__(ntheta, nz, n, ptheta, ngpus)
+        #self.err = np.ones(ntheta,dtype='float32')*1e8
 
     def __enter__(self):
         """Return self at start of a with-block."""
@@ -53,8 +54,6 @@ class SolverDeform(deform):
 
         flow[id] = cv2.calcOpticalFlowFarneback(
             tmp1.astype('uint8'), tmp2.astype('uint8'), flow[id], *pars)  # updates flow
-        # if(cp.linalg.norm(flow[id])!=0):
-        #    print(np.linalg.norm(flow[id]),cp.linalg.norm(tmp1-tmp2))
 
     def registration_flow_batch(self, psi, g, mmin, mmax, flow=None, pars=[0.5, 3, 20, 16, 5, 1.1, 4]):
         """Find optical flow for all projections in parallel on CPU"""
@@ -63,20 +62,33 @@ class SolverDeform(deform):
         total = 0
         for ids in chunk(range(self.ntheta), self.ptheta):
             flownew = flow[ids]
-            with cf.ThreadPoolExecutor() as e:
-                # update flow in place
-                e.map(partial(self.registration_flow, psi[ids], g[ids], mmin[ids],
+            with cf.ThreadPoolExecutor(16) as e:
+                 #update flow in place
+                 e.map(partial(self.registration_flow, psi[ids], g[ids], mmin[ids],
                               mmax[ids], flownew, pars), range(len(ids)))
 
             # control Farneback's (may diverge for small window sizes)
-            err = np.linalg.norm(
-                g[ids]-self.apply_flow_gpu_batch(psi[ids], flownew), axis=(1, 2))
-            err1 = np.linalg.norm(
-                g[ids]-self.apply_flow_gpu_batch(psi[ids], flow[ids]), axis=(1, 2))
-            idsgood = np.where(err1 >= err)[0]
+            #err = np.linalg.norm(
+            #    g[ids]-self.apply_flow_gpu_batch(psi[ids], flownew), axis=(1, 2))
+
+            #err1 = np.linalg.norm(
+            #    g[ids]-self.apply_flow_gpu_batch(psi[ids], flow[ids]), axis=(1, 2))
+
+            #idsgood = np.where(err1 >= err)[0]
+
+            g_gpu = cp.array(g[ids])
+            psi_gpu = cp.array(psi[ids])
+            flownew_gpu = cp.array(flownew)
+            flow_gpu = cp.array(flow[ids])
+            err = cp.linalg.norm(
+                g_gpu-self.apply_flow_gpu(psi_gpu, flownew_gpu,0), axis=(1, 2))
+            err1 = cp.linalg.norm(
+                g_gpu-self.apply_flow_gpu(psi_gpu, flow_gpu, 0), axis=(1, 2))
+ 
+            idsgood = cp.where(err1 >= err)[0].get()
             total += len(idsgood)
             flow[ids[idsgood]] = flownew[idsgood]
-        # print('bad alignment for:', self.ntheta-total)
+        print('bad alignment for:', self.ntheta-total)
         return flow
 
     def line_search(self, minf, gamma, psi, Dpsi, d, Td):
