@@ -53,3 +53,17 @@ norm object = 4057758.5
 ```
 
 ## 4. experimental data reconstruction
+
+battery reconstruction:
+
+```console
+cd experimental/battery
+```
+
+processing.py - preprocessing
+
+test_center.py - find rotation center
+
+cg.py - convetional reconstruction by CG
+
+admm.py - admm-based reconstruction with optical flow alignment
