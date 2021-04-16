@@ -88,7 +88,7 @@ class SolverDeform(deform):
             idsgood = cp.where(err1 >= err)[0].get()
             total += len(idsgood)
             flow[ids[idsgood]] = flownew[idsgood]
-        print('bad alignment for:', self.ntheta-total)
+        # print('bad alignment for:', self.ntheta-total)
         return flow
 
     def line_search(self, minf, gamma, psi, Dpsi, d, Td):

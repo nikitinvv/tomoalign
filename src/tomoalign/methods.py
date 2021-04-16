@@ -8,7 +8,6 @@ from .utils import *
 import dxchange
 import sys
 import scipy as sp
-import gc
 
 
 def prealign(data, pprot):
@@ -144,14 +143,14 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                     lagr[k, 2] = 0.5*rho*np.linalg.norm(h-psi)**2
                     lagr[k, 2] = 0.5*rho*np.linalg.norm(h-psi)**2
                     lagr[k, 3] = np.sum(lagr[k, 0:3])
-                    print("iter %d, %.2f wsize %d, rho %.2f, Lagrangian %.4e %.4e %.4e Total %.4e Time: %.2f %.2f %.2f " % (
+                    print("iter %d, flow norm %.2f wsize %d, rho %.2f, Lagrangian %.4e %.4e %.4e Total %.4e Time: %.2f %.2f %.2f " % (
                         k, np.linalg.norm(flow), pars[2], rho, *lagr[k], *t))
                     sys.stdout.flush()
                     # save object
-                    #dxchange.write_tiff_stack(unpadobject(
-                    #    u, n),  fname+'/data/of_recon/recon/iter'+str(k), overwrite=True)
-                    #dxchange.write_tiff_stack(
-                    #    psi,  fname+'/data/of_recon/psi/iter'+str(k), overwrite=True)
+                    dxchange.write_tiff_stack(unpadobject(
+                       u, n),  fname+'/data/of_recon/recon/iter'+str(k), overwrite=True)
+                    dxchange.write_tiff_stack(
+                       psi,  fname+'/data/of_recon/psi/iter'+str(k), overwrite=True)
                     # save flow figure
                     #np.save(fname+'/data/of_recon/flow'+str(k), flow)
                 # dslv.flowplot(
@@ -162,7 +161,6 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
 
                 if(pars[2] > 12):  # limit optical flow window size
                     pars[2] -= stepwin
-                # gc.collect()
         res['u'] = u
         res['psi'] = psi
         res['h0'] = h0
@@ -354,21 +352,12 @@ def _upsample_reg(init):
 
 
 def _take_psize(n):
-    # s = bin(int(3*n//2))
-    # s = s[:5]+s[5:].replace('1', '0')
+  
+    # s = bin(n)
+    # s = s[:3]+s[3:].replace('1', '0')
     # ne = int(s, 2)
-
-    s = bin(n)
-    s = s[:3]+s[3:].replace('1', '0')
-    ne = int(s, 2)
-    ne += (ne//4)
-
+    # ne += (ne//4)
     ne = 3*n//2
-    # s = bin(int(3*n//2))
-    # s = s[:5]+s[5:].replace('1', '0')
-    # ne = int(s, 2)
-
-    # ne=n
     print('padded size', ne)
     return ne
 
