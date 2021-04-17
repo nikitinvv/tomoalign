@@ -4,7 +4,10 @@ import numpy as np
 import h5py
 import sys
 
-file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample1_16nmZP_8keV_2200prj_219.h5'
+# file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample1_16nmZP_8keV_2200prj_219.h5'
+# file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample2_16nmZP_8keV_1400prj_220.h5'
+# file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample3_16nmZP_8keV_3000prj_221.h5'
+file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample4_16nmZP_8keV_2200prj_222.h5'
 sino_start = 0
 sino_end = 2048
 ntheta = 2200
@@ -26,7 +29,7 @@ for k in range(int(np.ceil(ntheta/ptheta))):
     prj = tomopy.downsample(prj, level=binning, axis=1)
     
     # save data
-    dxchange.write_tiff_stack(prj, f'{file_name[:-3]}/data/d', overwrite=True)  
+    dxchange.write_tiff_stack(prj, f'{file_name[:-3]}/data/d', start=ptheta*k, overwrite=True)  
 
 # save theta
 np.save(file_name[:-3]+'/data/theta',theta)  

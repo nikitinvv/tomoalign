@@ -3,7 +3,7 @@
 ## 1. create conda environment and install dependencies
 
 ```console
-conda create -n tomoalign -c conda-forge cupy swig scikit-build dxchange opencv
+conda create -n tomoalign -c conda-forge cupy swig scikit-build dxchange opencv tomopy
 ```
 
 Note: CUDA drivers need to be installed before installation

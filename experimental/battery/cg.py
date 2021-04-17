@@ -1,13 +1,31 @@
 import numpy as np
 import dxchange
 import tomoalign
+import sys
 
-file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample1_16nmZP_8keV_2200prj_219.h5'
-ntheta = 2200
+centers={
+'219': 623.5,
+'220': 623,
+'221': 608,
+'222': 599,
+}
+
+nthetas={
+'219': 2200,
+'220': 1400,
+'221': 3000,
+'222': 2200,
+}
+
+
+######################################################
+file_name = sys.argv[1]
+center = centers[file_name[-6:-3]]
+ntheta = nthetas[file_name[-6:-3]]
+
 ngpus = 4
-niter = 32
-pnz = 16 # chunk size in z
-center = 629
+niter = 64
+pnz = 32 # chunk size in z
 
 # read data
 prj = dxchange.read_tiff_stack(f'{file_name[:-3]}/data/d_00000.tiff', ind = range(ntheta))
@@ -16,5 +34,5 @@ nz,n = prj.shape[1:]
 
 init = np.zeros([nz,n,n],dtype='float32')
 with tomoalign.SolverTomo(theta, ntheta, nz, n, pnz, center, ngpus) as tslv:
-    u = tslv.cg_tomo_batch(prj, init, niter, dbg=True)
+    u = tslv.cg_tomo_batch(prj, init, niter, dbg=False)
     dxchange.write_tiff_stack(u, f'{file_name[:-3]}/cg/r',overwrite=True)

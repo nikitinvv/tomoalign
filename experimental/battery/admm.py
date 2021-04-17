@@ -1,16 +1,33 @@
 import dxchange
 import numpy as np
 import tomoalign
+import sys
 
-file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample1_16nmZP_8keV_2200prj_219.h5'
+centers={
+'219': 623.5,
+'220': 623,
+'221': 608,
+'222': 599,
+}
 
-ntheta = 2200
+nthetas={
+'219': 2200,
+'220': 1400,
+'221': 3000,
+'222': 2200,
+}
+
+
+######################################################
+file_name = sys.argv[1]
+center = centers[file_name[-6:-3]]
+ntheta = nthetas[file_name[-6:-3]]
+
 ngpus = 4
-center = 629
+pnz = 16 # chunk size for slices
+ptheta = 10 # chunk size for angles
 
-pnz = 16
-ptheta = 10
-
+exit()
 # read data
 prj = dxchange.read_tiff_stack(f'{file_name[:-3]}/data/d_00000.tiff', ind = range(ntheta))
 theta = np.load(file_name[:-3]+'/data/theta.npy')  

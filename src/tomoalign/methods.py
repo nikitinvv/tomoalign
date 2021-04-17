@@ -353,11 +353,11 @@ def _upsample_reg(init):
 
 def _take_psize(n):
   
-    # s = bin(n)
-    # s = s[:3]+s[3:].replace('1', '0')
-    # ne = int(s, 2)
-    # ne += (ne//4)
-    ne = 3*n//2
+    s = bin(n)
+    s = s[:3]+s[3:].replace('1', '0')
+    ne = int(s, 2)
+    ne += (ne//4)
+    # ne = 3*n//2
     print('padded size', ne)
     return ne
 

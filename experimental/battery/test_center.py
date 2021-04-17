@@ -2,7 +2,11 @@ import numpy as np
 import dxchange
 import tomoalign
 
-file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample1_16nmZP_8keV_2200prj_219.h5'
+# file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample1_16nmZP_8keV_2200prj_219.h5' # center 623.5
+# file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample2_16nmZP_8keV_1400prj_220.h5' # center 607
+# file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample3_16nmZP_8keV_3000prj_221.h5' # center 608
+file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample4_16nmZP_8keV_2200prj_222.h5' # center 599
+sino_start = 0
 ntheta = 2200
 ngpus = 1
 niter = 32
