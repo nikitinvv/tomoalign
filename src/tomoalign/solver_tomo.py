@@ -77,12 +77,18 @@ class SolverTomo(radonusfft):
         """Line search for the step sizes gamma"""
         while(minf(Ru)-minf(Ru+gamma*Rd) < 0):
             gamma *= 0.5
+            if(gamma < 1e-8):
+                gamma = 0
+                break
         return gamma
 
     def line_search_ext(self, minf, gamma, Ru, Rd, gu, gd):
         """Line search for the step sizes gamma"""
         while(minf(Ru, gu)-minf(Ru+gamma*Rd, gu+gamma*gd) < 0):
             gamma *= 0.5
+            if(gamma < 1e-8):
+                gamma = 0
+                break
         return gamma
         
     def fwd_tomo_batch(self, u):
@@ -148,11 +154,12 @@ class SolverTomo(radonusfft):
             Ru = self.fwd_tomo(u, gpu)
             grad = self.adj_tomo(Ru-xi0, gpu) / \
                 (self.ntheta * self.n/2)
-            if i == 0:
-                d = -grad
-            else:
-                d = -grad+cp.linalg.norm(grad)**2 / \
-                    (cp.sum(cp.conj(d)*(grad-grad0))+1e-32)*d
+            d = -grad
+            # if i == 0:
+            #     d = -grad
+            # else:
+            #     d = -grad+cp.linalg.norm(grad)**2 / \
+            #         (cp.sum(cp.conj(d)*(grad-grad0))+1e-32)*d
             # line search
             Rd = self.fwd_tomo(d, gpu)
             gamma = 0.5*self.line_search(minf, 1, Ru, Rd)
