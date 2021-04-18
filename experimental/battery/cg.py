@@ -4,11 +4,12 @@ import tomoalign
 import sys
 
 centers={
-'219': 623.5,
-'220': 623,
-'221': 608,
-'222': 599,
+'219': 1247,
+'220': 1214,
+'221': 1216,
+'222': 1198,
 }
+
 
 nthetas={
 '219': 2200,
@@ -23,9 +24,9 @@ file_name = sys.argv[1]
 center = centers[file_name[-6:-3]]
 ntheta = nthetas[file_name[-6:-3]]
 
-ngpus = 4
+ngpus = 8
 niter = 64
-pnz = 32 # chunk size in z
+pnz = 16 # chunk size in z
 
 # read data
 prj = dxchange.read_tiff_stack(f'{file_name[:-3]}/data/d_00000.tiff', ind = range(ntheta))

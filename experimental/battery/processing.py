@@ -4,15 +4,33 @@ import numpy as np
 import h5py
 import sys
 
-# file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample1_16nmZP_8keV_2200prj_219.h5'
-# file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample2_16nmZP_8keV_1400prj_220.h5'
-# file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample3_16nmZP_8keV_3000prj_221.h5'
-file_name = '/data/staff/tomograms/vviknik/experiments/APS/2021-03/Lethien/Sample4_16nmZP_8keV_2200prj_222.h5'
+centers={
+'219': 623.5,
+'220': 607,
+'221': 608,
+'222': 599,
+}
+
+nthetas={
+'219': 2200,
+'220': 1400,
+'221': 3000,
+'222': 2200,
+}
+
+
+######################################################
+file_name = sys.argv[1]
+center = centers[file_name[-6:-3]]
+ntheta = nthetas[file_name[-6:-3]]
+
+
 sino_start = 0
 sino_end = 2048
-ntheta = 2200
-ptheta = 200 # chunk size for reading
-binning = 1
+
+
+ptheta = 100 # chunk size for reading
+binning = 0
 
 for k in range(int(np.ceil(ntheta/ptheta))):
     print(k)

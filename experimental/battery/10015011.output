@@ -1,0 +1,30 @@
+(2200, 256, 306)
+padded size 320
+iter 0, flow norm 0.00 wsize 256, rho 0.50, Lagrangian 1.2093e+05 6.3562e+04 3.1514e+04 Total 2.1601e+05 Time: 6.55 3.54 1.99 
+iter 8, flow norm 15152.51 wsize 240, rho 4.00, Lagrangian 5.9836e+04 6.1599e+02 7.8434e+02 Total 6.1237e+04 Time: 5.74 2.28 1.70 
+iter 16, flow norm 10022.76 wsize 224, rho 4.00, Lagrangian 5.6043e+04 1.1242e+02 2.0888e+02 Total 5.6365e+04 Time: 5.63 2.31 1.79 
+iter 24, flow norm 9424.29 wsize 208, rho 4.00, Lagrangian 5.3422e+04 -4.7861e+01 1.8253e+01 Total 5.3392e+04 Time: 5.82 2.34 1.71 
+iter 32, flow norm 9350.39 wsize 192, rho 2.00, Lagrangian 4.9933e+04 -1.3810e+02 4.1657e+01 Total 4.9837e+04 Time: 5.51 2.37 1.75 
+iter 40, flow norm 9275.74 wsize 176, rho 2.00, Lagrangian 4.7392e+04 -8.7136e+01 3.6255e+01 Total 4.7341e+04 Time: 5.81 2.41 1.70 
+iter 48, flow norm 9210.23 wsize 160, rho 2.00, Lagrangian 4.5672e+04 -7.1895e+01 1.3429e+01 Total 4.5614e+04 Time: 5.46 2.41 1.71 
+iter 56, flow norm 9120.26 wsize 144, rho 2.00, Lagrangian 4.4423e+04 -5.2825e+01 7.6883e+00 Total 4.4378e+04 Time: 5.42 2.34 1.76 
+iter 64, flow norm 9032.08 wsize 128, rho 2.00, Lagrangian 4.3484e+04 -3.9573e+01 6.8583e+00 Total 4.3451e+04 Time: 5.57 2.39 1.79 
+iter 72, flow norm 8936.70 wsize 112, rho 2.00, Lagrangian 4.2760e+04 -2.8765e+01 5.3802e+00 Total 4.2736e+04 Time: 5.37 2.37 1.73 
+iter 80, flow norm 8826.74 wsize 96, rho 2.00, Lagrangian 4.2184e+04 -1.9755e+01 6.7050e+00 Total 4.2171e+04 Time: 5.35 2.33 1.77 
+iter 88, flow norm 8706.04 wsize 80, rho 2.00, Lagrangian 4.1722e+04 -1.4770e+01 7.5770e+00 Total 4.1715e+04 Time: 5.47 2.34 1.78 
+(2200, 512, 612)
+padded size 640
+iter 0, flow norm 27174.13 wsize 128, rho 0.50, Lagrangian 5.9841e+05 1.8121e+05 9.7841e+04 Total 8.7746e+05 Time: 26.52 8.88 6.41 
+iter 8, flow norm 28527.94 wsize 112, rho 2.00, Lagrangian 2.6200e+05 1.0530e+03 1.9164e+03 Total 2.6497e+05 Time: 24.86 9.36 6.47 
+iter 16, flow norm 28640.94 wsize 96, rho 2.00, Lagrangian 2.4849e+05 1.2336e+03 1.6720e+03 Total 2.5140e+05 Time: 25.07 8.67 6.46 
+iter 24, flow norm 28488.15 wsize 80, rho 4.00, Lagrangian 2.4559e+05 2.7009e+02 3.7363e+02 Total 2.4624e+05 Time: 24.34 8.76 6.66 
+iter 32, flow norm 28361.15 wsize 64, rho 4.00, Lagrangian 2.4190e+05 3.1765e+02 3.9366e+02 Total 2.4262e+05 Time: 24.61 8.96 6.52 
+iter 40, flow norm 28259.42 wsize 48, rho 4.00, Lagrangian 2.3894e+05 3.7244e+02 4.3468e+02 Total 2.3975e+05 Time: 24.46 8.87 6.34 
+(2200, 1024, 1224)
+padded size 1280
+iter 0, flow norm 107573.95 wsize 64, rho 0.50, Lagrangian 2.9948e+06 1.5428e+06 6.9017e+05 Total 5.2278e+06 Time: 100.13 36.79 27.83 
+iter 8, flow norm 107713.22 wsize 48, rho 1.00, Lagrangian 2.3645e+06 -2.5867e+04 1.0603e+04 Total 2.3492e+06 Time: 96.39 41.79 27.54 
+iter 16, flow norm 109131.14 wsize 32, rho 4.00, Lagrangian 2.2409e+06 2.1457e+04 2.1747e+04 Total 2.2841e+06 Time: 98.39 37.48 27.23 
+(2200, 2048, 2448)
+padded size 2560
+iter 0, flow norm 447681.47 wsize 32, rho 0.50, Lagrangian 2.1274e+07 1.5452e+07 6.7032e+06 Total 4.3430e+07 Time: 424.14 175.07 140.43 

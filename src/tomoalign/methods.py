@@ -136,7 +136,7 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                 # 3. dual update
                 lamd = lamd+rho*(h-psi)
 
-                if(np.mod(k, 4) == 0):  # check Lagrangian, save current iteration results
+                if(np.mod(k, 8) == 0):  # check Lagrangian, save current iteration results
                     Dpsi = dslv.apply_flow_gpu_batch(psi, flow)
                     lagr[k, 0] = 0.5*np.linalg.norm(Dpsi-data)**2
                     lagr[k, 1] = np.sum(lamd*(h-psi))
@@ -147,10 +147,10 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
                         k, np.linalg.norm(flow), pars[2], rho, *lagr[k], *t))
                     sys.stdout.flush()
                     # save object
-                    dxchange.write_tiff_stack(unpadobject(
-                       u, n),  fname+'/data/of_recon/recon/iter'+str(k), overwrite=True)
-                    dxchange.write_tiff_stack(
-                       psi,  fname+'/data/of_recon/psi/iter'+str(k), overwrite=True)
+#                    dxchange.write_tiff_stack(unpadobject(
+#                       u, n),  fname+'/data/of_recon/recon/iter'+str(k), overwrite=True)
+#                    dxchange.write_tiff_stack(
+#                       psi,  fname+'/data/of_recon/psi/iter'+str(k), overwrite=True)
                     # save flow figure
                     #np.save(fname+'/data/of_recon/flow'+str(k), flow)
                 # dslv.flowplot(

@@ -1,0 +1,3 @@
+astropy module not found
+/gpfs/mira-home/vvnikitin/tomoalign_vincent/tomoalign_experimental/experimental/battery/./run.sh: line 25: 68926 Killed                  NUMEXPR_MAX_THREADS=128 python admm.py /lus/theta-fs0/projects/nanoct/Lethien/Sample3_16nmZP_8keV_3000prj_221.h5
+astropy module not found
