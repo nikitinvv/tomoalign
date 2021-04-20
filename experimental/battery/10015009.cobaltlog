@@ -1,0 +1,25 @@
+Jobid: 10015009
+qsub -q full-node -A nanoct -t 12:00:00 -n 1 --proccount=32 ./run.sh 2
+Sat Apr 17 14:14:47 2021 +0000 (UTC) submitted with cwd set to: /gpfs/mira-home/vvnikitin/tomoalign_vincent/tomoalign_experimental/experimental/battery
+jobid 10015009 submitted from terminal /dev/pts/27
+Sat Apr 17 14:15:09 2021 +0000 (UTC) 
+Sat Apr 17 14:15:09 2021 +0000 (UTC) Command: '/usr/bin/ssh' 'thetagpu11' '/usr/bin/cobalt-launcher.py' '--nf' '/var/tmp/cobalt.10015009' '--jobid' '10015009' '--cwd' '/gpfs/mira-home/vvnikitin/tomoalign_vincent/tomoalign_experimental/experimental/battery' '--env' 'COBALT_JOBID=10015009' '/gpfs/mira-home/vvnikitin/tomoalign_vincent/tomoalign_experimental/experimental/battery/./run.sh' '2'
+Sat Apr 17 14:15:09 2021 +0000 (UTC) 
+Sat Apr 17 14:15:09 2021 +0000 (UTC) Environment:
+Sat Apr 17 14:15:09 2021 +0000 (UTC) SHELL=/bin/bash
+Sat Apr 17 14:15:09 2021 +0000 (UTC) COBALT_NODEFILE=/tmp/tmpJ_Tsss
+Sat Apr 17 14:15:09 2021 +0000 (UTC) COBALT_PARTNAME=thetagpu11
+Sat Apr 17 14:15:09 2021 +0000 (UTC) COBALT_JOBID=10015009
+Sat Apr 17 14:15:09 2021 +0000 (UTC) COBALT_STARTTIME=1618668900
+Sat Apr 17 14:15:09 2021 +0000 (UTC) LOGNAME=vvnikitin
+Sat Apr 17 14:15:09 2021 +0000 (UTC) USER=vvnikitin
+Sat Apr 17 14:15:09 2021 +0000 (UTC) COBALT_ENDTIME=1618712100
+Sat Apr 17 14:15:09 2021 +0000 (UTC) COBALT_PARTSIZE=32
+Sat Apr 17 14:15:09 2021 +0000 (UTC) HOME=/home/vvnikitin
+Sat Apr 17 14:15:09 2021 +0000 (UTC) COBALT_JOBSIZE=32
+Sat Apr 17 14:15:09 2021 +0000 (UTC) 
+Sat Apr 17 14:15:09 2021 +0000 (UTC) Info: stdin received from /dev/null
+Sat Apr 17 14:15:09 2021 +0000 (UTC) Info: stdout sent to /gpfs/mira-home/vvnikitin/tomoalign_vincent/tomoalign_experimental/experimental/battery/10015009.output
+Sat Apr 17 14:15:09 2021 +0000 (UTC) Info: stderr sent to /gpfs/mira-home/vvnikitin/tomoalign_vincent/tomoalign_experimental/experimental/battery/10015009.error
+Sat Apr 17 14:15:09 2021 +0000 (UTC) 
+Sat Apr 17 18:22:23 2021 +0000 (UTC) Info: task completed normally with an exit code of 0; initiating job cleanup and removal

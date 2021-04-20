@@ -148,3 +148,4 @@ dmypy.json
 core
 .nfs*
 *.swp
+*.tiff

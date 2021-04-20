@@ -1,12 +1,14 @@
 import numpy as np
 import concurrent.futures as cf
 import threading
-from functools import partial
 import cv2
 import cupy as cp
 import matplotlib.pyplot as plt
+import matplotlib
 from .deform import deform
 from .flowvis import flow_to_color
+from .utils import chunk
+from functools import partial
 
 
 class SolverDeform(deform):
@@ -14,7 +16,7 @@ class SolverDeform(deform):
     This class is a context manager which provides the basic operators required
     to implement an alignment solver. It also manages memory automatically,
     and provides correct cleanup for interruptions or terminations.
-    Attribtues
+    Attributes
     ----------
     ntheta : int
         The number of projections.    
@@ -25,7 +27,11 @@ class SolverDeform(deform):
     def __init__(self, ntheta, nz, n, ptheta, ngpus):
         """Please see help(SolverTomo) for more info."""
         # create class for the tomo transform associated with first gpu
+        if(ntheta % ptheta > 0):
+            print('Error, ptheta is not a multiple of ntheta')
+            exit()
         super().__init__(ntheta, nz, n, ptheta, ngpus)
+        #self.err = np.ones(ntheta,dtype='float32')*1e8
 
     def __enter__(self):
         """Return self at start of a with-block."""
@@ -35,30 +41,8 @@ class SolverDeform(deform):
         """Free GPU memory due at interruptions or with-block exit."""
         self.free()
 
-    def apply_flow_cpu(self, f, flow, id):
-        """Apply optical flow for one projection."""
-        flow0 = flow[id].copy()
-        h, w = flow0.shape[:2]
-        flow0 = -flow0
-        flow0[:, :, 0] += np.arange(w)
-        flow0[:, :, 1] += np.arange(h)[:, np.newaxis]
-        f0 = f[id]
-        res = cv2.remap(f0, flow0,
-                        None, cv2.INTER_LANCZOS4)
-        return res
-
-    def apply_flow_cpu_batch(self, psi, flow, nproc=16):
-        """Apply optical flow for all projection in parallel."""
-        res = np.zeros(psi.shape, dtype='float32')
-        with cf.ThreadPoolExecutor(nproc) as e:
-            shift = 0
-            for res0 in e.map(partial(self.apply_flow_cpu, psi, flow), range(0, psi.shape[0])):
-                res[shift] = res0
-                shift += 1
-        return res
-
     def registration_flow(self, psi, g, mmin, mmax, flow, pars, id):
-        """Find optical flow for one projection"""
+        """Find optical flow for one projection by using opencv library on CPU"""
         tmp1 = ((psi[id]-mmin[id]) /
                 (mmax[id]-mmin[id])*255)
         tmp1[tmp1 > 255] = 255
@@ -67,38 +51,56 @@ class SolverDeform(deform):
                 (mmax[id]-mmin[id])*255)
         tmp2[tmp2 > 255] = 255
         tmp2[tmp2 < 0] = 0
-        cv2.calcOpticalFlowFarneback(
-           tmp1, tmp2, flow[id], *pars)  # updates flow
+
+        flow[id] = cv2.calcOpticalFlowFarneback(
+            tmp1.astype('uint8'), tmp2.astype('uint8'), flow[id], *pars)  # updates flow
 
     def registration_flow_batch(self, psi, g, mmin, mmax, flow=None, pars=[0.5, 3, 20, 16, 5, 1.1, 4]):
-        """Find optical flow for all projections in parallel"""
+        """Find optical flow for all projections in parallel on CPU"""
         if (flow is None):
-            flow = np.zeros([self.ntheta, self.nz, self.n, 2], dtype='float32')
+            flow = np.zeros([*psi.shape, 2], dtype='float32')
+        total = 0
+        for ids in chunk(range(self.ntheta), self.ptheta):
+            flownew = flow[ids]
+            with cf.ThreadPoolExecutor(16) as e:
+                 #update flow in place
+                 e.map(partial(self.registration_flow, psi[ids], g[ids], mmin[ids],
+                              mmax[ids], flownew, pars), range(len(ids)))
 
-        flow0 = flow.copy()
-        with cf.ThreadPoolExecutor() as e:
-            # update flow in place
-            e.map(partial(self.registration_flow, psi, g, mmin,
-                          mmax, flow, pars), range(0, psi.shape[0]))
+            # control Farneback's (may diverge for small window sizes)
+            #err = np.linalg.norm(
+            #    g[ids]-self.apply_flow_gpu_batch(psi[ids], flownew), axis=(1, 2))
 
-        # control Farneback's (may diverge for small window sizes)
-        err = np.linalg.norm(g-self.apply_flow_gpu_batch(psi, flow0))
-        err1 = np.linalg.norm(g-self.apply_flow_gpu_batch(psi, flow))
-        if(err1 > err):  # use new flow or not
-            flow = flow0
+            #err1 = np.linalg.norm(
+            #    g[ids]-self.apply_flow_gpu_batch(psi[ids], flow[ids]), axis=(1, 2))
 
+            #idsgood = np.where(err1 >= err)[0]
+
+            g_gpu = cp.array(g[ids])
+            psi_gpu = cp.array(psi[ids])
+            flownew_gpu = cp.array(flownew)
+            flow_gpu = cp.array(flow[ids])
+            err = cp.linalg.norm(
+                g_gpu-self.apply_flow_gpu(psi_gpu, flownew_gpu,0), axis=(1, 2))
+            err1 = cp.linalg.norm(
+                g_gpu-self.apply_flow_gpu(psi_gpu, flow_gpu, 0), axis=(1, 2))
+ 
+            idsgood = cp.where(err1 >= err)[0].get()
+            total += len(idsgood)
+            flow[ids[idsgood]] = flownew[idsgood]
+        # print('bad alignment for:', self.ntheta-total)
         return flow
 
     def line_search(self, minf, gamma, psi, Dpsi, d, Td):
         """Line search for the step sizes gamma"""
         while(minf(psi, Dpsi)-minf(psi+gamma*d, Dpsi+gamma*Td) < 0):
             gamma *= 0.5
-        if(gamma<0.125):
+        if(gamma < 0.125):
             gamma = 0
         return gamma
 
-    
     def apply_flow_gpu(self, f, flow, gpu):
+
         h, w = flow.shape[1:3]
         flow = -flow.copy()
         flow[:, :, :, 0] += cp.arange(w)
@@ -107,15 +109,17 @@ class SolverDeform(deform):
         flowx = cp.asarray(flow[:, :, :, 0], order='C')
         flowy = cp.asarray(flow[:, :, :, 1], order='C')
         g = f.copy()  # keep values that were not affected
+
         # g = cp.zeros([self.ptheta,self.nz,self.n],dtype='float32')
 
         self.remap(g.data.ptr, f.data.ptr, flowx.data.ptr, flowy.data.ptr, gpu)
         return g
 
     def apply_flow_gpu_batch(self, f, flow):
-        res = np.zeros([self.ntheta, self.nz, self.n], dtype='float32')
-        for k in range(0, self.ntheta//self.ptheta):
-            ids = np.arange(k*self.ptheta, (k+1)*self.ptheta)
+        res = np.zeros([f.shape[0], self.nz, self.n], dtype='float32')
+        f_gpu = cp.zeros([self.ptheta, self.nz, self.n], dtype='float32')
+        flow_gpu = cp.zeros([self.ptheta, self.nz, self.n, 2], dtype='float32')
+        for ids in chunk(range(f.shape[0]), self.ptheta):
             # copy data part to gpu
             f_gpu = cp.array(f[ids])
             flow_gpu = cp.array(flow[ids])
@@ -144,7 +148,7 @@ class SolverDeform(deform):
             # line search
             Td = self.apply_flow_gpu(d, flow, gpu)
             gamma = 0.5*self.line_search(minf, 1, psi, Dpsi, d, Td)
-            if(gamma==0):
+            if(gamma == 0):
                 break
             grad0 = grad
             # update step
@@ -184,11 +188,7 @@ class SolverDeform(deform):
     def cg_deform_gpu_batch(self, data, init, flow, titer, xi1=0, rho=0, dbg=False):
 
         psi = init.copy()
-        ids_list = [None]*int(np.ceil(self.ntheta/float(self.ptheta)))
-        for k in range(0, len(ids_list)):
-            ids_list[k] = range(
-                k*self.ptheta, min(self.ntheta, (k+1)*self.ptheta))
-
+        ids_list = chunk(range(self.ntheta), self.ptheta)
         lock = threading.Lock()
         global BUSYGPUS
         BUSYGPUS = np.zeros(self.ngpus)
@@ -204,7 +204,7 @@ class SolverDeform(deform):
     def flowplot(self, u, psi, flow, fname):
         """Visualize 4 aligned projections, corrsponding optical flows, 
         and slices through reconsruction, save figure as a png file"""
-
+        matplotlib.use('Agg')
         [ntheta, nz, n] = psi.shape
 
         plt.figure(figsize=(10, 7))
@@ -236,9 +236,9 @@ class SolverDeform(deform):
         plt.imshow(u[nz//2+nz//8], cmap='gray')
 
         plt.subplot(3, 4, 11)
-        plt.imshow(u[:, n//2], cmap='gray')
+        plt.imshow(u[:, n//2-35], cmap='gray')
 
         plt.subplot(3, 4, 12)
-        plt.imshow(u[:, :, n//2], cmap='gray')
+        plt.imshow(u[:, :, n//2-35], cmap='gray')
         plt.savefig(fname)
         plt.close()
