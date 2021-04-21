@@ -1,7 +1,7 @@
 # tomoalign
 Multi-GPU reconstruction of tomographic data with non-rigid projection alignment
 
-see https://arxiv.org/abs/2008.03375 for details
+see https://ieeexplore.ieee.org/document/9364757 for details
 
 ## 1. create conda environment and install dependencies
 
