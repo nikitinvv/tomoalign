@@ -5,22 +5,14 @@ import h5py
 import sys
 
 
-nthetas={
-'219': 2200,
-'220': 1400,
-'221': 3000,
-'222': 2200,
-}
 
 
 ######################################################
 file_name = sys.argv[1]
-ntheta = nthetas[file_name[-6:-3]]
-
+ntheta = 900
 
 sino_start = 0
-sino_end = 2048
-
+sino_end = 800
 
 ptheta = 100 # chunk size for reading
 binning = 0
