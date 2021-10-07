@@ -31,7 +31,7 @@ file_name = sys.argv[1]
 center = centers[file_name[-6:-3]]
 ntheta = nthetas[file_name[-6:-3]]
 
-ngpus = 8
+ngpus = 4
 pnz = 16 # chunk size for slices
 ptheta = 20 # chunk size for angles
 
