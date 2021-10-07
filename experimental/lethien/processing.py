@@ -14,6 +14,11 @@ nthetas={
 '487': 2160,
 '491': 1440,
 '492': 1440,
+'157': 2880,
+'158': 2160,
+'159': 2160,
+'160': 2160,
+'161': 2160,
 }
 
 
@@ -22,11 +27,11 @@ file_name = sys.argv[1]
 ntheta = nthetas[file_name[-6:-3]]
 
 
-sino_start = 0
-sino_end = 2048
+sino_start = 512
+sino_end = 1536+512
 
 
-ptheta = 200 # chunk size for reading
+ptheta = 720 # chunk size for reading
 binning = 0
 
 for k in range(int(np.ceil(ntheta/ptheta))):
@@ -44,7 +49,7 @@ for k in range(int(np.ceil(ntheta/ptheta))):
     prj = tomopy.downsample(prj, level=binning, axis=1)
     
     # save data
-    dxchange.write_tiff_stack(prj, f'{file_name[:-3]}/data/d', start=ptheta*k, overwrite=True)  
+    dxchange.write_tiff_stack(prj[:,:,246:-246], f'{file_name[:-3]}/data/d', start=ptheta*k, overwrite=True)  
 
 # save theta
 np.save(file_name[:-3]+'/data/theta',theta)  

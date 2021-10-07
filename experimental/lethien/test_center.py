@@ -11,6 +11,11 @@ nthetas={
 '487': 2160,
 '491': 1262,
 '492': 1192,
+'157': 2880,
+'158': 2160,
+'159': 2160,
+'160': 2160,
+'161': 2160,
 }
 
 ######################################################
@@ -27,8 +32,7 @@ prj = dxchange.read_tiff_stack(f'{file_name[:-3]}/data/d_00000.tiff', ind = rang
 prj = prj[:,prj.shape[1]//2:prj.shape[1]//2+2]
 theta = np.load(file_name[:-3]+'/data/theta.npy')  
 n = prj.shape[2]
-for center in range(n//2+70,n//2+80):
-    print(f'check center {center}')
+for center in range(n//2-20,n//2+20):
     init = np.zeros([nz,n,n],dtype='float32')
     with tomoalign.SolverTomo(theta, ntheta, nz, n, pnz, center, ngpus) as tslv:
         u = tslv.cg_tomo_batch(prj, init, niter)
