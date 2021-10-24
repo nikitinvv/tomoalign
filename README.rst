@@ -12,7 +12,7 @@ Example of reconstruction:
 
 
 .. image:: fiber.png
-    :width: 70%
+    :width: 65%
     :align: center
     
 ================
