@@ -1,7 +1,22 @@
-# tomoalign
-Multi-GPU reconstruction of tomographic data with non-rigid projection alignment
 
-see https://ieeexplore.ieee.org/document/9364757 for details
+================
+TomoAlign
+================
+
+**tomoalign**  is Python module for multi-GPU reconstruction of tomographic data with non-rigid projection alignment. For details, see  Nikitin, Viktor, et al. "Distributed optimization for nonrigid nano-tomography." IEEE Transactions on Computational Imaging 7 (2021): 272-287. (https://ieeexplore.ieee.org/document/9364757)
+The module allows for compensating sample drift/deformation during tomographic data acquistion. The proposed method is based on solving a distributed optimization problem invloving tomographic and deformation estimation subproblems. Tomographic subproblems is solved by using the Conjugate gradient method, while the deformation is estimated with using the Farneback algorithm. Both subproblems are coordinated inside an ADMM (Altenrative Directions Method of Multipliers) scheme. Note: the method works better for interlaced scanning protocols (4-8 sample rotations).
+
+Example of reconstruction:
+
+
+.. image:: img/fiber.png
+    :width: 50%
+    :align: center
+    
+
+    
+
+
 
 ## 1. create conda environment and install dependencies
 
