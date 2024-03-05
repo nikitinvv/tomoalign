@@ -22,7 +22,7 @@ Installation
 
 1. create conda environment and install dependencies::
 
-    conda create -n tomoalign -c conda-forge cupy swig scikit-build dxchange tomopy
+    conda create -n tomoalign -c conda-forge cupy swig scikit-build dxchange tomopy cmake matplotlib
     conda activate tomoalign
     conda install -c conda-forge opencv
 
