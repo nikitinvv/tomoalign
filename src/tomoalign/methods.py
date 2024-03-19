@@ -9,7 +9,6 @@ import dxchange
 import sys
 import scipy as sp
 
-
 def prealign(data, pprot):
     """prealign projections by optical flow according to adjacent interlaced angles"""
 
@@ -170,6 +169,101 @@ def admm_of(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, r
 
     return res
 
+def admm_lam_of(data, theta, pnz, ptheta, center, phi, ngpus, niter, startwin, stepwin, res=None, fname='', titer=4, padding=True):
+    """Reconstruct with the optical flow method (OF)"""
+    from lam_usfft.fftcl import LAM
+    
+    [ntheta, nz, n] = data.shape
+    # tomographic solver on GPU
+    if (padding):
+        ne = _take_psize(n)
+    else:
+        ne = n
+    # with SolverTomo(theta, ntheta, nz, ne, pnz, center+(ne-n)/2, ngpus) as tslv:
+    with LAM(nz, ne, ne, ne, nz, ntheta, ne//4, nz//4, ntheta//4) as tslv:
+        # alignment solver on GPU
+        with SolverDeform(ntheta, nz, n, ptheta, ngpus) as dslv:
+            # find min,max values accoding to histogram
+            mmin, mmax = find_min_max(data)
+
+            # initial guess and coordinating variables
+            if(res == None):
+                u = np.zeros([ne, nz, ne], dtype='float32')#NOTE
+                psi = data.copy()
+                h0 = psi.copy()
+                lamd = np.zeros([ntheta, nz, n], dtype='float32')
+                flow = np.zeros([ntheta, nz, n, 2], dtype='float32')
+                res = {}
+            else:
+                u = res['u']
+                psi = res['psi']
+                h0 = res['h0']
+                lamd = res['lamd']
+                flow = res['flow']
+            # optical flow parameters (see openCV function for Farneback's algorithm)
+            pars = [0.5, 1, startwin, titer, 5, 1.1, 4]
+            rho = 0.5  # weighting factor in ADMM
+            lagr = np.zeros([niter, 4], dtype='float32')
+            t = np.zeros(3)
+            for k in range(niter):
+
+                # 1. Solve the alignment sub-problem
+                # register flow
+                tic()
+                flow = dslv.registration_flow_batch(
+                    psi, data, mmin, mmax, flow, pars)
+                t[0]=toc()
+                # unwarping
+                tic()
+                psi = dslv.cg_deform_gpu_batch(data, psi, flow, titer, unpaddata(
+                    tslv.fwd_lam(u,theta,phi), n)+lamd/rho, rho)
+                t[1]=toc()
+                tic()
+                # 2. Solve the tomography sub-problen
+                # u = tslv.cg_tomo_batch(paddata(psi-lamd/rho, ne), u, titer)
+                u = tslv.cg_lam(paddata(psi-lamd/rho, ne), u, theta, phi, titer)
+                
+                t[2]=toc()
+ 
+                # compute forward tomography operator for further updates of rho and lambda
+                #h = unpaddata(tslv.fwd_tomo_batch(u), n)
+                h = unpaddata(tslv.fwd_lam(u,theta,phi), n)
+                # 3. dual update
+                lamd = lamd+rho*(h-psi)
+
+                if(np.mod(k, 8) == 0):  # check Lagrangian, save current iteration results
+                    Dpsi = dslv.apply_flow_gpu_batch(psi, flow)
+                    lagr[k, 0] = 0.5*np.linalg.norm(Dpsi-data)**2
+                    lagr[k, 1] = np.sum(lamd*(h-psi))
+                    lagr[k, 2] = 0.5*rho*np.linalg.norm(h-psi)**2
+                    lagr[k, 2] = 0.5*rho*np.linalg.norm(h-psi)**2
+                    lagr[k, 3] = np.sum(lagr[k, 0:3])
+                    print("iter %d, flow norm %.2f wsize %d, rho %.2f, Lagrangian %.4e %.4e %.4e Total %.4e Time: %.2f %.2f %.2f " % (
+                        k, np.linalg.norm(flow), pars[2], rho, *lagr[k], *t))
+                    sys.stdout.flush()
+                    # save object
+#                    dxchange.write_tiff_stack(unpadobject(
+#                       u, n),  fname+'/data/of_recon/recon/iter'+str(k), overwrite=True)
+#                    dxchange.write_tiff_stack(
+#                       psi,  fname+'/data/of_recon/psi/iter'+str(k), overwrite=True)
+                    # save flow figure
+                    #np.save(fname+'/data/of_recon/flow'+str(k), flow)
+                dslv.flowplot(
+                    u, psi, flow, fname+'/data/of_recon/flow_iter'+str(k))
+                # update rho
+                rho = _update_penalty(psi, h, h0, rho)
+                h0 = h
+
+                if(pars[2] > 12):  # limit optical flow window size
+                    pars[2] -= stepwin
+        res['u'] = u
+        res['psi'] = psi
+        res['h0'] = h0
+        res['lamd'] = lamd
+        res['flow'] = flow
+        res['lagr'] = lagr
+
+    return res
 
 def admm_of_reg(data, theta, pnz, ptheta, center, alpha, ngpus, niter, startwin, stepwin, res=None, fname='', padding=False):
     """Reconstruct with the optical flow method and regularization (OFTV)"""
@@ -362,16 +456,18 @@ def _take_psize(n):
     return ne
 
 
-def admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, fname, padding=True):
+def admm_of_levels(data, theta, pnz, ptheta, center, ngpus, niter, startwin, stepwin, fname, padding=True, phi=np.pi/2):
     res = None
     levels = len(niter)
     for k in np.arange(0, levels):
         databin = _downsample(data, levels-1-k)
-        print(databin.shape)
-        # res = admm_of(databin, theta, int(pnz/pow(2, k)), ptheta, center/pow(
-        # 2, k), ngpus, niter[k], startwin[k], stepwin[k], res, fname)
-        res = admm_of(databin, theta, int(np.ceil(pnz/pow(2, k))), ptheta, center/pow(
-            2, levels-k-1), ngpus, niter[k], startwin[k], stepwin[k], res, fname, padding=padding)
+        if np.abs(phi-np.pi/2)>1e-3:            
+            print('lamino')
+            res = admm_lam_of(databin, theta, int(np.ceil(pnz/pow(2, k))), ptheta, center/pow(
+                2, levels-k-1), phi, ngpus, niter[k], startwin[k], stepwin[k], res, fname, padding=padding)
+        else:
+            res = admm_of(databin, theta, int(pnz/pow(2, k)), ptheta, center/pow(
+                2, k), ngpus, niter[k], startwin[k], stepwin[k], res, fname, padding=padding)        
 
         if(k < levels-1):
             res = _upsample(res)
